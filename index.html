@@ -416,29 +416,106 @@
                     <div id="alert-container"></div>
                     
                     <form id="lease-form">
+                        <!-- Tenant 1 -->
+                        <div class="card-header" style="font-size: 16px; margin-top: 10px; margin-bottom: 15px;">Tenant 1 *</div>
                         <div class="form-grid">
                             <div class="form-group">
-                                <label>Tenant Name(s) *</label>
-                                <input type="text" name="tenant_names" required>
+                                <label>Full Name *</label>
+                                <input type="text" name="tenant1_name" required>
                             </div>
                             <div class="form-group">
-                                <label>Tenant Email *</label>
-                                <input type="email" name="tenant_email" required>
+                                <label>Email *</label>
+                                <input type="email" name="tenant1_email" required>
                             </div>
                             <div class="form-group">
-                                <label>Tenant Phone</label>
-                                <input type="tel" name="tenant_phone">
+                                <label>Phone</label>
+                                <input type="tel" name="tenant1_phone">
                             </div>
                             <div class="form-group">
-                                <label>Tenant Employer</label>
-                                <input type="text" name="tenant_employer">
+                                <label>Employer</label>
+                                <input type="text" name="tenant1_employer">
                             </div>
                         </div>
 
+                        <!-- Tenant 2 -->
+                        <div class="card-header" style="font-size: 16px; margin-top: 20px; margin-bottom: 15px;">Tenant 2 (Optional)</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Full Name</label>
+                                <input type="text" name="tenant2_name">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" name="tenant2_email">
+                            </div>
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input type="tel" name="tenant2_phone">
+                            </div>
+                            <div class="form-group">
+                                <label>Employer</label>
+                                <input type="text" name="tenant2_employer">
+                            </div>
+                        </div>
+
+                        <!-- Tenant 3 -->
+                        <div class="card-header" style="font-size: 16px; margin-top: 20px; margin-bottom: 15px;">Tenant 3 (Optional)</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Full Name</label>
+                                <input type="text" name="tenant3_name">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" name="tenant3_email">
+                            </div>
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input type="tel" name="tenant3_phone">
+                            </div>
+                            <div class="form-group">
+                                <label>Employer</label>
+                                <input type="text" name="tenant3_employer">
+                            </div>
+                        </div>
+
+                        <!-- Tenant 4 -->
+                        <div class="card-header" style="font-size: 16px; margin-top: 20px; margin-bottom: 15px;">Tenant 4 (Optional)</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Full Name</label>
+                                <input type="text" name="tenant4_name">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" name="tenant4_email">
+                            </div>
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input type="tel" name="tenant4_phone">
+                            </div>
+                            <div class="form-group">
+                                <label>Employer</label>
+                                <input type="text" name="tenant4_employer">
+                            </div>
+                        </div>
+
+                        <div class="card-header" style="font-size: 16px; margin-top: 30px; margin-bottom: 15px;">Property Information</div>
                         <div class="form-grid">
                             <div class="form-group full-width">
-                                <label>Property Address *</label>
-                                <input type="text" name="property_address" required>
+                                <label>Property & Unit *</label>
+                                <select name="property_address" required>
+                                    <option value="">Select Property</option>
+                                    <option value="180 N Courtland St, Unit 180A, East Stroudsburg, PA 18301">180 N Courtland St - Unit 180A</option>
+                                    <option value="180 N Courtland St, Unit 180B, East Stroudsburg, PA 18301">180 N Courtland St - Unit 180B</option>
+                                    <option value="180 N Courtland St, Unit 182A, East Stroudsburg, PA 18301">180 N Courtland St - Unit 182A</option>
+                                    <option value="180 N Courtland St, Unit 182B, East Stroudsburg, PA 18301">180 N Courtland St - Unit 182B</option>
+                                    <option value="503 Lindbergh Ave, 1st Floor, Stroudsburg, PA 18360">503 Lindbergh Ave - 1st Floor</option>
+                                    <option value="503 Lindbergh Ave, 2nd Floor, Stroudsburg, PA 18360">503 Lindbergh Ave - 2nd Floor</option>
+                                    <option value="1028 Poplar Valley Rd, Stroudsburg, PA 18360">1028 Poplar Valley Rd - Single Family</option>
+                                    <option value="1038 Poplar Valley Rd, Upstairs, Stroudsburg, PA 18360">1038 Poplar Valley Rd - Upstairs</option>
+                                    <option value="1038 Poplar Valley Rd, Downstairs, Stroudsburg, PA 18360">1038 Poplar Valley Rd - Downstairs</option>
+                                </select>
                             </div>
                         </div>
 
@@ -669,7 +746,20 @@
             e.preventDefault();
             
             const formData = new FormData(e.target);
-            const leaseData = Object.fromEntries(formData.entries());
+            const leaseData = {};
+            
+            // Collect all form data
+            for (let [key, value] of formData.entries()) {
+                leaseData[key] = value;
+            }
+            
+            // Build tenant names string for display
+            const tenantNames = [];
+            if (leaseData.tenant1_name) tenantNames.push(leaseData.tenant1_name);
+            if (leaseData.tenant2_name) tenantNames.push(leaseData.tenant2_name);
+            if (leaseData.tenant3_name) tenantNames.push(leaseData.tenant3_name);
+            if (leaseData.tenant4_name) tenantNames.push(leaseData.tenant4_name);
+            leaseData.tenant_names = tenantNames.join(', ');
             
             // Add calculated fields
             leaseData.status = 'active';
@@ -677,7 +767,7 @@
             
             try {
                 // Save to database
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('leases')
                     .insert([leaseData])
                     .select();
