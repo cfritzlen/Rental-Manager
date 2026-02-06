@@ -438,12 +438,12 @@
                                     <input type="text" name="tenant1_name" id="tenant1_name" required>
                                 </div>
                                 <div class="form-group">
-                                    <label>Email *</label>
-                                    <input type="email" name="tenant1_email" required>
+                                    <label>Email</label>
+                                    <input type="email" name="tenant1_email">
                                 </div>
                                 <div class="form-group">
-                                    <label>Phone *</label>
-                                    <input type="tel" name="tenant1_phone" required>
+                                    <label>Phone</label>
+                                    <input type="tel" name="tenant1_phone">
                                 </div>
                                 <div class="form-group">
                                     <label>Employer</label>
@@ -865,9 +865,9 @@
             const tenantCount = parseInt(leaseData.tenant_count) || 1;
             
             for (let i = 1; i <= tenantCount; i++) {
-                const email = leaseData[`tenant${i}_email`] || '________';
-                const phone = leaseData[`tenant${i}_phone`] || '________';
-                const employer = leaseData[`tenant${i}_employer`] || '________';
+                const email = leaseData[`tenant${i}_email`] || '___________________________';
+                const phone = leaseData[`tenant${i}_phone`] || '_____________________';
+                const employer = leaseData[`tenant${i}_employer`] || '_____________________________________________';
                 
                 const tenantInfo = `Tenant's Email Address: ${email}  Tenant Telephone Number: ${phone}  Tenant's Employer: ${employer}`;
                 const splitTenant = doc.splitTextToSize(tenantInfo, 170);
@@ -876,7 +876,7 @@
             }
             
             y += 2;
-            const landlordInfo = `Landlord's Email Address: colette.fritzlen@example.com  Landlord's Telephone Number: 570-560-6626`;
+            const landlordInfo = `Landlord's Email Address: mocopropert908@gmail.com  Landlord's Telephone Number: 570-560-6626`;
             const splitLandlord = doc.splitTextToSize(landlordInfo, 170);
             doc.text(splitLandlord, leftMargin, y);
             y += splitLandlord.length * 5;
