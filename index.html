@@ -416,87 +416,108 @@
                     <div id="alert-container"></div>
                     
                     <form id="lease-form">
-                        <!-- Tenant 1 -->
-                        <div class="card-header" style="font-size: 16px; margin-top: 10px; margin-bottom: 15px;">Tenant 1 *</div>
+                        <div class="card-header" style="font-size: 16px; margin-bottom: 15px;">Lease Configuration</div>
                         <div class="form-grid">
                             <div class="form-group">
-                                <label>Full Name *</label>
-                                <input type="text" name="tenant1_name" required>
+                                <label>Number of Tenants *</label>
+                                <select name="tenant_count" id="tenant-count" required onchange="updateTenantSections()">
+                                    <option value="1">1 Tenant</option>
+                                    <option value="2">2 Tenants</option>
+                                    <option value="3">3 Tenants</option>
+                                    <option value="4">4 Tenants</option>
+                                </select>
                             </div>
-                            <div class="form-group">
-                                <label>Email *</label>
-                                <input type="email" name="tenant1_email" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Phone</label>
-                                <input type="tel" name="tenant1_phone">
-                            </div>
-                            <div class="form-group">
-                                <label>Employer</label>
-                                <input type="text" name="tenant1_employer">
+                        </div>
+
+                        <!-- Tenant 1 -->
+                        <div id="tenant1-section">
+                            <div class="card-header" style="font-size: 16px; margin-top: 20px; margin-bottom: 15px;">Tenant 1 *</div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Full Name *</label>
+                                    <input type="text" name="tenant1_name" id="tenant1_name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Email *</label>
+                                    <input type="email" name="tenant1_email" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Phone *</label>
+                                    <input type="tel" name="tenant1_phone" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Employer</label>
+                                    <input type="text" name="tenant1_employer">
+                                </div>
                             </div>
                         </div>
 
                         <!-- Tenant 2 -->
-                        <div class="card-header" style="font-size: 16px; margin-top: 20px; margin-bottom: 15px;">Tenant 2 (Optional)</div>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>Full Name</label>
-                                <input type="text" name="tenant2_name">
-                            </div>
-                            <div class="form-group">
-                                <label>Email</label>
-                                <input type="email" name="tenant2_email">
-                            </div>
-                            <div class="form-group">
-                                <label>Phone</label>
-                                <input type="tel" name="tenant2_phone">
-                            </div>
-                            <div class="form-group">
-                                <label>Employer</label>
-                                <input type="text" name="tenant2_employer">
+                        <div id="tenant2-section" style="display: none;">
+                            <div class="card-header" style="font-size: 16px; margin-top: 20px; margin-bottom: 15px;">Tenant 2</div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Full Name</label>
+                                    <input type="text" name="tenant2_name" id="tenant2_name">
+                                </div>
+                                <div class="form-group">
+                                    <label>Email</label>
+                                    <input type="email" name="tenant2_email">
+                                </div>
+                                <div class="form-group">
+                                    <label>Phone</label>
+                                    <input type="tel" name="tenant2_phone">
+                                </div>
+                                <div class="form-group">
+                                    <label>Employer</label>
+                                    <input type="text" name="tenant2_employer">
+                                </div>
                             </div>
                         </div>
 
                         <!-- Tenant 3 -->
-                        <div class="card-header" style="font-size: 16px; margin-top: 20px; margin-bottom: 15px;">Tenant 3 (Optional)</div>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>Full Name</label>
-                                <input type="text" name="tenant3_name">
-                            </div>
-                            <div class="form-group">
-                                <label>Email</label>
-                                <input type="email" name="tenant3_email">
-                            </div>
-                            <div class="form-group">
-                                <label>Phone</label>
-                                <input type="tel" name="tenant3_phone">
-                            </div>
-                            <div class="form-group">
-                                <label>Employer</label>
-                                <input type="text" name="tenant3_employer">
+                        <div id="tenant3-section" style="display: none;">
+                            <div class="card-header" style="font-size: 16px; margin-top: 20px; margin-bottom: 15px;">Tenant 3</div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Full Name</label>
+                                    <input type="text" name="tenant3_name" id="tenant3_name">
+                                </div>
+                                <div class="form-group">
+                                    <label>Email</label>
+                                    <input type="email" name="tenant3_email">
+                                </div>
+                                <div class="form-group">
+                                    <label>Phone</label>
+                                    <input type="tel" name="tenant3_phone">
+                                </div>
+                                <div class="form-group">
+                                    <label>Employer</label>
+                                    <input type="text" name="tenant3_employer">
+                                </div>
                             </div>
                         </div>
 
                         <!-- Tenant 4 -->
-                        <div class="card-header" style="font-size: 16px; margin-top: 20px; margin-bottom: 15px;">Tenant 4 (Optional)</div>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>Full Name</label>
-                                <input type="text" name="tenant4_name">
-                            </div>
-                            <div class="form-group">
-                                <label>Email</label>
-                                <input type="email" name="tenant4_email">
-                            </div>
-                            <div class="form-group">
-                                <label>Phone</label>
-                                <input type="tel" name="tenant4_phone">
-                            </div>
-                            <div class="form-group">
-                                <label>Employer</label>
-                                <input type="text" name="tenant4_employer">
+                        <div id="tenant4-section" style="display: none;">
+                            <div class="card-header" style="font-size: 16px; margin-top: 20px; margin-bottom: 15px;">Tenant 4</div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Full Name</label>
+                                    <input type="text" name="tenant4_name" id="tenant4_name">
+                                </div>
+                                <div class="form-group">
+                                    <label>Email</label>
+                                    <input type="email" name="tenant4_email">
+                                </div>
+                                <div class="form-group">
+                                    <label>Phone</label>
+                                    <input type="tel" name="tenant4_phone">
+                                </div>
+                                <div class="form-group">
+                                    <label>Employer</label>
+                                    <input type="text" name="tenant4_employer">
+                                </div>
                             </div>
                         </div>
 
@@ -519,34 +540,36 @@
                             </div>
                         </div>
 
+                        <div class="card-header" style="font-size: 16px; margin-top: 30px; margin-bottom: 15px;">Lease Terms</div>
                         <div class="form-grid">
                             <div class="form-group">
                                 <label>Lease Start Date *</label>
                                 <input type="date" name="lease_start" required onchange="calculateEndDate()">
                             </div>
                             <div class="form-group">
-                                <label>Lease Type *</label>
-                                <select name="lease_type" required onchange="calculateRent()">
-                                    <option value="">Select Type</option>
-                                    <option value="month_to_month">Month-to-Month (20% increase)</option>
-                                    <option value="12_month">12 Months (8% increase)</option>
-                                    <option value="24_month">24 Months (5% increase)</option>
+                                <label>Lease Duration *</label>
+                                <select name="lease_type" required onchange="calculateEndDate()">
+                                    <option value="">Select Duration</option>
+                                    <option value="month_to_month">Month-to-Month</option>
+                                    <option value="12_month">12 Months</option>
+                                    <option value="24_month">24 Months</option>
                                 </select>
                             </div>
                             <div class="form-group">
                                 <label>Lease End Date</label>
                                 <input type="date" name="lease_end" readonly style="background: #f1f5f9;">
                             </div>
+                            <div class="form-group">
+                                <label>Lease Period (months)</label>
+                                <input type="number" name="lease_months" readonly style="background: #f1f5f9;">
+                            </div>
                         </div>
 
+                        <div class="card-header" style="font-size: 16px; margin-top: 30px; margin-bottom: 15px;">Financial Terms</div>
                         <div class="form-grid">
                             <div class="form-group">
-                                <label>Base Rent Amount *</label>
-                                <input type="number" name="base_rent" step="0.01" required onchange="calculateRent()">
-                            </div>
-                            <div class="form-group">
-                                <label>Calculated Rent (with increase)</label>
-                                <input type="number" name="rent_amount" step="0.01" readonly style="background: #f1f5f9;">
+                                <label>Monthly Rent Amount *</label>
+                                <input type="number" name="rent_amount" step="0.01" required>
                             </div>
                         </div>
 
@@ -665,7 +688,32 @@
             if (viewName === 'leases') loadAllLeases();
         }
 
-        // Calculate end date based on lease type
+        // Show/hide tenant sections based on count
+        function updateTenantSections() {
+            const count = parseInt(document.getElementById('tenant-count').value);
+            
+            for (let i = 1; i <= 4; i++) {
+                const section = document.getElementById(`tenant${i}-section`);
+                const nameInput = document.getElementById(`tenant${i}_name`);
+                
+                if (i <= count) {
+                    section.style.display = 'block';
+                    if (i === 1) {
+                        nameInput.required = true;
+                    }
+                } else {
+                    section.style.display = 'none';
+                    nameInput.required = false;
+                    // Clear hidden fields
+                    document.querySelector(`[name="tenant${i}_name"]`).value = '';
+                    document.querySelector(`[name="tenant${i}_email"]`).value = '';
+                    document.querySelector(`[name="tenant${i}_phone"]`).value = '';
+                    document.querySelector(`[name="tenant${i}_employer"]`).value = '';
+                }
+            }
+        }
+
+        // Calculate end date and lease months
         function calculateEndDate() {
             const startDate = document.querySelector('[name="lease_start"]').value;
             const leaseType = document.querySelector('[name="lease_type"]').value;
@@ -674,46 +722,25 @@
 
             const start = new Date(startDate);
             let end = new Date(start);
+            let months = 0;
 
             switch(leaseType) {
                 case 'month_to_month':
                     end.setMonth(end.getMonth() + 1);
+                    months = 1;
                     break;
                 case '12_month':
                     end.setFullYear(end.getFullYear() + 1);
+                    months = 12;
                     break;
                 case '24_month':
                     end.setFullYear(end.getFullYear() + 2);
+                    months = 24;
                     break;
             }
 
             document.querySelector('[name="lease_end"]').value = end.toISOString().split('T')[0];
-        }
-
-        // Calculate rent with increase
-        function calculateRent() {
-            const baseRent = parseFloat(document.querySelector('[name="base_rent"]').value) || 0;
-            const leaseType = document.querySelector('[name="lease_type"]').value;
-            
-            if (!baseRent || !leaseType) return;
-
-            let multiplier = 1;
-            switch(leaseType) {
-                case 'month_to_month':
-                    multiplier = 1.20; // 20% increase
-                    break;
-                case '12_month':
-                    multiplier = 1.08; // 8% increase
-                    break;
-                case '24_month':
-                    multiplier = 1.05; // 5% increase
-                    break;
-            }
-
-            const calculatedRent = (baseRent * multiplier).toFixed(2);
-            document.querySelector('[name="rent_amount"]').value = calculatedRent;
-
-            calculateEndDate();
+            document.querySelector('[name="lease_months"]').value = months;
         }
 
         // Calculate pet fees
@@ -792,97 +819,184 @@
         });
 
         // Generate PDF
+        // Generate PDF matching the exact format of the lease page 1
         function generatePDF(leaseData) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
+            // Use Times Roman font (default)
+            doc.setFont('times', 'normal');
+            
             let y = 20;
+            const leftMargin = 20;
             
             // Title
-            doc.setFontSize(20);
-            doc.setFont(undefined, 'bold');
-            doc.text('RESIDENTIAL LEASE AGREEMENT', 105, y, { align: 'center' });
+            doc.setFontSize(14);
+            doc.setFont('times', 'bold');
+            doc.text('1 - RESIDENTIAL LEASE AGREEMENT', leftMargin, y);
             
-            y += 15;
-            doc.setFontSize(12);
-            doc.setFont(undefined, 'normal');
+            y += 10;
+            doc.setFontSize(11);
+            doc.text('1.1 TERMS AND PARTIES', leftMargin, y);
             
-            // Lease details
-            doc.text(`Lease Start: ${leaseData.lease_start}`, 20, y);
-            y += 7;
-            doc.text(`Lease End: ${leaseData.lease_end}`, 20, y);
-            y += 7;
-            doc.text(`Lease Type: ${leaseData.lease_type.replace('_', ' ')}`, 20, y);
-            
-            y += 12;
-            doc.setFont(undefined, 'bold');
-            doc.text('PARTIES:', 20, y);
-            doc.setFont(undefined, 'normal');
-            y += 7;
-            doc.text(`Landlord: Colette Fritzlen`, 20, y);
-            y += 7;
-            doc.text(`Tenant(s): ${leaseData.tenant_names}`, 20, y);
-            
-            y += 12;
-            doc.setFont(undefined, 'bold');
-            doc.text('PROPERTY:', 20, y);
-            doc.setFont(undefined, 'normal');
-            y += 7;
-            doc.text(leaseData.property_address, 20, y);
-            
-            y += 12;
-            doc.setFont(undefined, 'bold');
-            doc.text('RENT DETAILS:', 20, y);
-            doc.setFont(undefined, 'normal');
-            y += 7;
-            doc.text(`Base Rent: $${leaseData.base_rent}`, 20, y);
-            y += 7;
-            doc.text(`Monthly Rent (with increase): $${leaseData.rent_amount}`, 20, y);
-            
-            if (leaseData.security_deposit) {
-                y += 7;
-                doc.text(`Security Deposit: $${leaseData.security_deposit}`, 20, y);
-            }
-            
-            if (parseInt(leaseData.num_cats) > 0 || parseInt(leaseData.num_dogs) > 0) {
-                y += 12;
-                doc.setFont(undefined, 'bold');
-                doc.text('PET INFORMATION:', 20, y);
-                doc.setFont(undefined, 'normal');
-                y += 7;
-                
-                if (parseInt(leaseData.num_cats) > 0) {
-                    doc.text(`Cats: ${leaseData.num_cats} at $${leaseData.cat_fee}/month each`, 20, y);
-                    y += 7;
-                }
-                
-                if (parseInt(leaseData.num_dogs) > 0) {
-                    doc.text(`Dogs: ${leaseData.num_dogs} at $${leaseData.dog_fee}/month each`, 20, y);
-                    y += 7;
-                }
-            }
-            
-            if (leaseData.notes) {
-                y += 12;
-                doc.setFont(undefined, 'bold');
-                doc.text('ADDITIONAL NOTES:', 20, y);
-                doc.setFont(undefined, 'normal');
-                y += 7;
-                const splitNotes = doc.splitTextToSize(leaseData.notes, 170);
-                doc.text(splitNotes, 20, y);
-            }
-            
-            // Signature lines
-            y += 30;
-            doc.line(20, y, 90, y);
-            doc.line(120, y, 190, y);
-            y += 7;
+            y += 6;
             doc.setFontSize(10);
-            doc.text('Landlord Signature / Date', 20, y);
-            doc.text('Tenant Signature / Date', 120, y);
+            doc.setFont('times', 'normal');
+            
+            // Build the first paragraph with filled in data
+            const leaseMonths = leaseData.lease_months || '';
+            const leaseStart = leaseData.lease_start || '________';
+            const leaseEnd = leaseData.lease_end || '________';
+            
+            const para1 = `This is a lease for a period of ${leaseMonths} months (the "Lease Term") beginning on ${leaseStart} and ending on ${leaseEnd}.`;
+            const splitPara1 = doc.splitTextToSize(para1, 170);
+            doc.text(splitPara1, leftMargin, y);
+            y += splitPara1.length * 5;
+            
+            y += 2;
+            const para2 = `Between Colette Fritzlen, ("Landlord") and ${leaseData.tenant_names || '________'} ("Tenants").`;
+            const splitPara2 = doc.splitTextToSize(para2, 170);
+            doc.text(splitPara2, leftMargin, y);
+            y += splitPara2.length * 5;
+            
+            // Tenant information
+            y += 3;
+            const tenantCount = parseInt(leaseData.tenant_count) || 1;
+            
+            for (let i = 1; i <= tenantCount; i++) {
+                const email = leaseData[`tenant${i}_email`] || '________';
+                const phone = leaseData[`tenant${i}_phone`] || '________';
+                const employer = leaseData[`tenant${i}_employer`] || '________';
+                
+                const tenantInfo = `Tenant's Email Address: ${email}  Tenant Telephone Number: ${phone}  Tenant's Employer: ${employer}`;
+                const splitTenant = doc.splitTextToSize(tenantInfo, 170);
+                doc.text(splitTenant, leftMargin, y);
+                y += splitTenant.length * 5;
+            }
+            
+            y += 2;
+            const landlordInfo = `Landlord's Email Address: colette.fritzlen@example.com  Landlord's Telephone Number: 570-560-6626`;
+            const splitLandlord = doc.splitTextToSize(landlordInfo, 170);
+            doc.text(splitLandlord, leftMargin, y);
+            y += splitLandlord.length * 5;
+            
+            y += 8;
+            doc.setFont('times', 'bold');
+            doc.text('1.2 PROPERTY RENTED', leftMargin, y);
+            
+            y += 6;
+            doc.setFont('times', 'normal');
+            doc.text('Landlord leases to Tenant property located at:', leftMargin, y);
+            
+            y += 5;
+            doc.setFont('times', 'bold');
+            const splitAddress = doc.splitTextToSize(leaseData.property_address || '________', 170);
+            doc.text(splitAddress, leftMargin + 5, y);
+            doc.setFont('times', 'normal');
+            y += splitAddress.length * 5;
+            
+            y += 6;
+            doc.text('Together with the following furniture and appliances, if any:', leftMargin, y);
+            
+            y += 5;
+            // Appliance checkboxes
+            doc.rect(leftMargin + 5, y - 3, 3, 3);
+            doc.text('Refrigerator', leftMargin + 10, y);
+            doc.rect(leftMargin + 45, y - 3, 3, 3);
+            doc.text('Range', leftMargin + 50, y);
+            doc.rect(leftMargin + 75, y - 3, 3, 3);
+            doc.text('Dishwasher', leftMargin + 80, y);
+            doc.rect(leftMargin + 115, y - 3, 3, 3);
+            doc.text('Microwave', leftMargin + 120, y);
+            doc.rect(leftMargin + 155, y - 3, 3, 3);
+            doc.text('Washer/dryer', leftMargin + 160, y);
+            
+            y += 8;
+            doc.text('The Premises shall be occupied only by the Tenant(s) and the following persons:', leftMargin, y);
+            y += 5;
+            doc.text('_______________________________________________________________________________________', leftMargin, y);
+            
+            y += 8;
+            doc.setFont('times', 'bold');
+            doc.text('1.3 COMMON AREAS', leftMargin, y);
+            
+            y += 6;
+            doc.setFont('times', 'normal');
+            doc.text('Under no circumstances are common areas to be used for tenant storage.', leftMargin, y);
+            
+            y += 8;
+            doc.setFont('times', 'bold');
+            doc.text('1.4 RENT PAYMENTS AND CHARGES', leftMargin, y);
+            
+            y += 6;
+            doc.setFont('times', 'normal');
+            const rentAmount = leaseData.rent_amount || '________';
+            doc.text(`Tenant Shall pay rent for the Premises in installments of RENT $${rentAmount}`, leftMargin, y);
+            
+            y += 6;
+            const rentText = `Tenant shall pay the rent and all other charges required to be paid under the Lease by submitting payment online or utilizing a 3rd party electronic payment service. Landlord reserves the right to accept or reject payments utilizing other methods including check or money order. No personal checks will be accepted after the fifth day of each month.`;
+            const splitRentText = doc.splitTextToSize(rentText, 170);
+            doc.text(splitRentText, leftMargin, y);
+            y += splitRentText.length * 5;
+            
+            y += 3;
+            const proRataText = `The landlord may appoint an agent to collect the Lease Payment and to perform the Landlord's obligations. If the tenancy starts on a day other than the first day of the month, Tenant shall pay pro-rated rent until the first regular rental payment date.`;
+            const splitProRata = doc.splitTextToSize(proRataText, 170);
+            doc.text(splitProRata, leftMargin, y);
+            y += splitProRata.length * 5;
+            
+            y += 8;
+            doc.setFont('times', 'bold');
+            doc.text('1.5 SECURITY DEPOSIT AND ADVANCE RENT', leftMargin, y);
+            
+            y += 6;
+            doc.setFont('times', 'normal');
+            const splitDeposit = doc.splitTextToSize('In addition to the Lease Payments described above, Tenant shall pay the following: (check all that apply)', 170);
+            doc.text(splitDeposit, leftMargin, y);
+            y += splitDeposit.length * 5;
+            
+            y += 3;
+            const firstMonth = leaseData.first_month_rent || '';
+            const lastMonth = leaseData.last_month_rent || '';
+            const securityDep = leaseData.security_deposit || '';
+            
+            // First month checkbox
+            if (firstMonth) doc.text('☑', leftMargin, y);
+            else doc.rect(leftMargin, y - 3, 3, 3);
+            doc.text(`First month's Rent of $${firstMonth || '________'} due at lease signing.`, leftMargin + 5, y);
+            y += 5;
+            
+            // Last month checkbox
+            if (lastMonth) doc.text('☑', leftMargin, y);
+            else doc.rect(leftMargin, y - 3, 3, 3);
+            doc.text(`Last month's Rent of $${lastMonth || '________'} due at lease signing.`, leftMargin + 5, y);
+            y += 5;
+            
+            // Security deposit checkbox
+            if (securityDep) doc.text('☑', leftMargin, y);
+            else doc.rect(leftMargin, y - 3, 3, 3);
+            doc.text(`Security Deposit of $${securityDep || '________'} due at lease signing.`, leftMargin + 5, y);
+            y += 6;
+            
+            doc.text('A monthly non-refundable pet fee (if applicable) in the amount of', leftMargin, y);
+            y += 5;
+            const catFee = leaseData.cat_fee || '';
+            const numCats = leaseData.num_cats || '';
+            const catTotal = (catFee && numCats) ? (parseFloat(catFee) * parseInt(numCats)).toFixed(2) : '';
+            const catLine = `$${catFee || '________'}/month per cat – number of cats ${numCats || '___'} - Total Monthly Fee to be paid with rent $${catTotal || '________'}`;
+            const splitCat = doc.splitTextToSize(catLine, 165);
+            doc.text(splitCat, leftMargin + 5, y);
+            y += splitCat.length * 5;
+            
+            const dogFee = leaseData.dog_fee || '';
+            const numDogs = leaseData.num_dogs || '';
+            const dogTotal = (dogFee && numDogs) ? (parseFloat(dogFee) * parseInt(numDogs)).toFixed(2) : '';
+            const dogLine = `$${dogFee || '________'}/month per dog – number of dogs ${numDogs || '___'} - Total Monthly Fee to be paid with rent $${dogTotal || '________'}`;
+            const splitDog = doc.splitTextToSize(dogLine, 165);
+            doc.text(splitDog, leftMargin + 5, y);
             
             // Save PDF
-            const filename = `Lease_${leaseData.tenant_names.replace(/\s+/g, '_')}_${leaseData.lease_start}.pdf`;
+            const filename = `Lease_Page1_${leaseData.tenant_names ? leaseData.tenant_names.replace(/\s+/g, '_') : 'Draft'}_${leaseData.lease_start || 'Draft'}.pdf`;
             doc.save(filename);
         }
 
