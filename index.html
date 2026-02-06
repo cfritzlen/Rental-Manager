@@ -791,6 +791,7 @@
             // Add calculated fields
             leaseData.status = 'active';
             leaseData.created_at = new Date().toISOString();
+            leaseData.base_rent = leaseData.rent_amount; // For initial leases, base_rent = rent_amount
             
             try {
                 // Save to database
