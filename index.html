@@ -1166,8 +1166,7 @@
             
             y += 15;
             
-            // Tenant signatures
-            const tenantCount = parseInt(leaseData.tenant_count) || 1;
+            // Tenant signatures (tenantCount already declared earlier in this function)
             
             for (let i = 1; i <= tenantCount; i++) {
                 const tenantName = leaseData[`tenant${i}_name`] || `Tenant ${i}`;
