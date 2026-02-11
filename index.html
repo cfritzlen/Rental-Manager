@@ -373,7 +373,7 @@
                 <div class="logo">Rental Management</div>
                 <nav class="nav">
                     <button class="nav-btn active" onclick="showView('dashboard')">Dashboard</button>
-                    <button class="nav-btn" onclick="showView('new-lease')">New Lease</button>
+                    <button class="nav-btn" onclick="resetAndShowNewLease()">New Lease</button>
                     <button class="nav-btn" onclick="showView('leases')">All Leases</button>
                 </nav>
             </div>
@@ -416,7 +416,18 @@
                     <div id="alert-container"></div>
                     
                     <form id="lease-form">
+                        <!-- Hidden field to track if this is a renewal -->
+                        <input type="hidden" name="is_renewal" id="is-renewal" value="false">
+                        <input type="hidden" name="previous_lease_id" id="previous-lease-id" value="">
+                        
                         <div class="card-header" style="font-size: 16px; margin-bottom: 15px;">Lease Configuration</div>
+                        
+                        <!-- Renewal indicator - shown when renewing -->
+                        <div id="renewal-indicator" style="display: none; background: #dbeafe; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #3b82f6;">
+                            <strong>🔄 Renewing Existing Lease</strong>
+                            <p style="margin: 5px 0 0 0; font-size: 14px; color: #1e40af;">All data pre-filled from previous lease. Update as needed.</p>
+                        </div>
+                        
                         <div class="form-grid">
                             <div class="form-group">
                                 <label>Number of Tenants *</label>
@@ -566,12 +577,37 @@
                         </div>
 
                         <div class="card-header" style="font-size: 16px; margin-top: 30px; margin-bottom: 15px;">Financial Terms</div>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>Monthly Rent Amount *</label>
-                                <input type="number" name="rent_amount" step="0.01" required>
+                        
+                        <!-- Renewal rent increase section - only shown for renewals -->
+                        <div id="renewal-rent-section" style="display: none;">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Previous Monthly Rent</label>
+                                    <input type="number" id="previous-rent" step="0.01" readonly style="background: #f1f5f9;">
+                                </div>
+                                <div class="form-group">
+                                    <label>Rent Increase % *</label>
+                                    <input type="number" id="rent-increase-percent" step="0.01" min="0" max="100" placeholder="e.g., 5, 8, 20" onchange="calculateRenewalRent()">
+                                </div>
+                                <div class="form-group">
+                                    <label>New Monthly Rent *</label>
+                                    <input type="number" id="rent-amount-renewal" step="0.01" readonly style="background: #f1f5f9;">
+                                </div>
                             </div>
                         </div>
+                        
+                        <!-- Initial lease rent - shown for new leases -->
+                        <div id="initial-rent-section">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Monthly Rent Amount *</label>
+                                    <input type="number" id="rent-amount-initial" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Hidden field that will hold the actual rent_amount for form submission -->
+                        <input type="hidden" name="rent_amount" id="rent-amount-hidden">
 
                         <div class="form-grid">
                             <div class="form-group">
@@ -688,6 +724,29 @@
             if (viewName === 'leases') loadAllLeases();
         }
 
+        // Reset form and show new lease view (not a renewal)
+        function resetAndShowNewLease() {
+            // Reset the form
+            document.getElementById('lease-form').reset();
+            
+            // Reset renewal mode
+            document.getElementById('is-renewal').value = 'false';
+            document.getElementById('previous-lease-id').value = '';
+            document.getElementById('renewal-indicator').style.display = 'none';
+            document.getElementById('renewal-rent-section').style.display = 'none';
+            document.getElementById('initial-rent-section').style.display = 'block';
+            
+            // Show the view
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('new-lease').classList.add('active');
+            event.target.classList.add('active');
+            
+            // Reset tenant sections
+            document.getElementById('tenant-count').value = '1';
+            updateTenantSections();
+        }
+
         // Show/hide tenant sections based on count
         function updateTenantSections() {
             const count = parseInt(document.getElementById('tenant-count').value);
@@ -743,6 +802,18 @@
             document.querySelector('[name="lease_months"]').value = months;
         }
 
+        // Calculate new rent for renewals based on % increase
+        function calculateRenewalRent() {
+            const previousRent = parseFloat(document.getElementById('previous-rent').value) || 0;
+            const increasePercent = parseFloat(document.getElementById('rent-increase-percent').value) || 0;
+            
+            if (previousRent && increasePercent >= 0) {
+                const newRent = previousRent * (1 + increasePercent / 100);
+                document.getElementById('rent-amount-renewal').value = newRent.toFixed(2);
+                document.getElementById('rent-amount-hidden').value = newRent.toFixed(2);
+            }
+        }
+
         // Calculate pet fees
         function calculatePetFees() {
             const numCats = parseInt(document.querySelector('[name="num_cats"]').value) || 0;
@@ -771,6 +842,25 @@
         // Form submission
         document.getElementById('lease-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            // Copy the correct rent_amount to the hidden field
+            const isRenewal = document.getElementById('is-renewal').value === 'true';
+            if (isRenewal) {
+                // For renewals, value is already set by calculateRenewalRent
+                const renewalRent = document.getElementById('rent-amount-renewal').value;
+                if (!renewalRent) {
+                    showAlert('Please enter a rent increase percentage', 'error');
+                    return;
+                }
+            } else {
+                // For initial leases, copy from initial rent field
+                const initialRent = document.getElementById('rent-amount-initial').value;
+                if (!initialRent) {
+                    showAlert('Please enter a rent amount', 'error');
+                    return;
+                }
+                document.getElementById('rent-amount-hidden').value = initialRent;
+            }
             
             const formData = new FormData(e.target);
             const leaseData = {};
@@ -804,12 +894,31 @@
 
                 showAlert('Lease saved successfully!', 'success');
                 
+                // If this is a renewal, terminate the old lease
+                if (leaseData.is_renewal === 'true' && leaseData.previous_lease_id) {
+                    try {
+                        await supabaseClient
+                            .from('leases')
+                            .update({ status: 'terminated' })
+                            .eq('id', leaseData.previous_lease_id);
+                    } catch (terminateError) {
+                        console.error('Error terminating old lease:', terminateError);
+                        // Don't fail the whole process if old lease termination fails
+                    }
+                }
+                
                 // Generate PDF
                 generatePDF(leaseData);
                 
                 // Reset form after 2 seconds
                 setTimeout(() => {
                     e.target.reset();
+                    // Reset renewal mode
+                    document.getElementById('is-renewal').value = 'false';
+                    document.getElementById('previous-lease-id').value = '';
+                    document.getElementById('renewal-indicator').style.display = 'none';
+                    document.getElementById('renewal-rent-section').style.display = 'none';
+                    document.getElementById('initial-rent-section').style.display = 'block';
                     showView('dashboard');
                 }, 2000);
 
@@ -1012,11 +1121,14 @@
                 if (error) throw error;
 
                 // Calculate stats
-                const activeLeases = leases.filter(l => l.status === 'active');
+                const today = new Date();
+                const activeLeases = leases.filter(l => {
+                    const endDate = new Date(l.lease_end);
+                    return l.status === 'active' && endDate >= today;
+                });
                 const uniqueProperties = new Set(leases.map(l => l.property_address)).size;
                 
                 // Calculate expiring soon (30 days)
-                const today = new Date();
                 const thirtyDaysFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
                 const expiringSoon = activeLeases.filter(l => {
                     const endDate = new Date(l.lease_end);
@@ -1024,7 +1136,24 @@
                 });
 
                 // Calculate total revenue
-                const totalRevenue = activeLeases.reduce((sum, l) => sum + parseFloat(l.rent_amount || 0), 0);
+                // Get most recent lease per property (excluding terminated)
+                const revenueLeases = [];
+                const propertiesMap = new Map();
+                
+                // Get non-terminated leases grouped by property
+                const nonTerminatedLeases = leases.filter(l => l.status !== 'terminated');
+                
+                // For each property, get the most recent lease
+                nonTerminatedLeases.forEach(lease => {
+                    const existing = propertiesMap.get(lease.property_address);
+                    if (!existing || new Date(lease.created_at) > new Date(existing.created_at)) {
+                        propertiesMap.set(lease.property_address, lease);
+                    }
+                });
+                
+                // Convert map to array and calculate revenue
+                const totalRevenue = Array.from(propertiesMap.values())
+                    .reduce((sum, l) => sum + parseFloat(l.rent_amount || 0), 0);
 
                 // Update stats
                 document.getElementById('stat-properties').textContent = uniqueProperties;
@@ -1110,6 +1239,7 @@
                         <td>
                             <button class="action-btn btn-primary" onclick="viewLease(${lease.id})">View</button>
                             <button class="action-btn btn-secondary" onclick="regeneratePDF(${lease.id})">PDF</button>
+                            ${lease.status === 'active' ? `<button class="action-btn" style="background: #10b981; color: white;" onclick="renewLease(${lease.id})">Renew</button>` : ''}
                             ${lease.status === 'active' ? `<button class="action-btn" style="background: #ef4444; color: white;" onclick="endLease(${lease.id})">End</button>` : ''}
                         </td>
                     </tr>
@@ -1163,6 +1293,66 @@
                 console.error('Error ending lease:', error);
                 showAlert('Error ending lease: ' + error.message, 'error');
             }
+        }
+
+        // Renew a lease - pre-fills form with existing data
+        function renewLease(id) {
+            const lease = allLeases.find(l => l.id === id);
+            if (!lease) return;
+
+            // Switch to New Lease tab
+            showView('new-lease');
+            
+            // Mark as renewal
+            document.getElementById('is-renewal').value = 'true';
+            document.getElementById('previous-lease-id').value = id;
+            
+            // Show renewal indicator
+            document.getElementById('renewal-indicator').style.display = 'block';
+            document.getElementById('renewal-rent-section').style.display = 'block';
+            document.getElementById('initial-rent-section').style.display = 'none';
+            
+            // Set tenant count
+            const tenantCount = parseInt(lease.tenant_count) || 1;
+            document.getElementById('tenant-count').value = tenantCount;
+            updateTenantSections();
+            
+            // Fill tenant info
+            for (let i = 1; i <= tenantCount; i++) {
+                if (lease[`tenant${i}_name`]) {
+                    document.querySelector(`[name="tenant${i}_name"]`).value = lease[`tenant${i}_name`] || '';
+                    document.querySelector(`[name="tenant${i}_email"]`).value = lease[`tenant${i}_email`] || '';
+                    document.querySelector(`[name="tenant${i}_phone"]`).value = lease[`tenant${i}_phone`] || '';
+                    document.querySelector(`[name="tenant${i}_employer"]`).value = lease[`tenant${i}_employer`] || '';
+                }
+            }
+            
+            // Fill property
+            document.querySelector('[name="property_address"]').value = lease.property_address;
+            
+            // Set previous rent and prepare for increase
+            document.getElementById('previous-rent').value = lease.rent_amount;
+            document.getElementById('rent-increase-percent').value = '';
+            document.getElementById('rent-amount').value = '';
+            
+            // Fill deposits (can be edited)
+            document.querySelector('[name="security_deposit"]').value = lease.security_deposit || '';
+            document.querySelector('[name="first_month_rent"]').value = lease.first_month_rent || '';
+            document.querySelector('[name="last_month_rent"]').value = lease.last_month_rent || '';
+            
+            // Fill pet info (defaults from old lease, can be edited)
+            document.querySelector('[name="num_cats"]').value = lease.num_cats || 0;
+            document.querySelector('[name="cat_fee"]').value = lease.cat_fee || 0;
+            document.querySelector('[name="num_dogs"]').value = lease.num_dogs || 0;
+            document.querySelector('[name="dog_fee"]').value = lease.dog_fee || 0;
+            
+            // Fill notes
+            document.querySelector('[name="notes"]').value = lease.notes || '';
+            
+            // Scroll to top
+            window.scrollTo(0, 0);
+            
+            showAlert('Renewing lease - update dates and rent increase %', 'success');
         }
 
         // Show alerts
