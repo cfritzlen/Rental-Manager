@@ -1087,7 +1087,10 @@
                 let statusClass = 'status-active';
                 let statusText = 'Active';
                 
-                if (daysUntilEnd < 0) {
+                if (lease.status === 'terminated') {
+                    statusClass = 'status-expired';
+                    statusText = 'Terminated';
+                } else if (daysUntilEnd < 0) {
                     statusClass = 'status-expired';
                     statusText = 'Expired';
                 } else if (daysUntilEnd <= 30) {
@@ -1107,6 +1110,7 @@
                         <td>
                             <button class="action-btn btn-primary" onclick="viewLease(${lease.id})">View</button>
                             <button class="action-btn btn-secondary" onclick="regeneratePDF(${lease.id})">PDF</button>
+                            ${lease.status === 'active' ? `<button class="action-btn" style="background: #ef4444; color: white;" onclick="endLease(${lease.id})">End</button>` : ''}
                         </td>
                     </tr>
                 `;
@@ -1135,6 +1139,29 @@
             const lease = allLeases.find(l => l.id === id);
             if (lease) {
                 generatePDF(lease);
+            }
+        }
+
+        // End a lease
+        async function endLease(id) {
+            if (!confirm('Are you sure you want to end this lease? This will mark it as terminated.')) {
+                return;
+            }
+
+            try {
+                const { error } = await supabaseClient
+                    .from('leases')
+                    .update({ status: 'terminated' })
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                showAlert('Lease ended successfully', 'success');
+                loadDashboard();
+                loadAllLeases();
+            } catch (error) {
+                console.error('Error ending lease:', error);
+                showAlert('Error ending lease: ' + error.message, 'error');
             }
         }
 
