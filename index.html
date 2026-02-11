@@ -718,7 +718,13 @@
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             
             document.getElementById(viewName).classList.add('active');
-            event.target.classList.add('active');
+            // Find and activate the corresponding nav button
+            const buttons = document.querySelectorAll('.nav-btn');
+            buttons.forEach(btn => {
+                if (btn.textContent.toLowerCase().includes(viewName.replace('-', ' '))) {
+                    btn.classList.add('active');
+                }
+            });
 
             if (viewName === 'dashboard') loadDashboard();
             if (viewName === 'leases') loadAllLeases();
@@ -740,7 +746,14 @@
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('new-lease').classList.add('active');
-            event.target.classList.add('active');
+            
+            // Find and activate the New Lease button
+            const buttons = document.querySelectorAll('.nav-btn');
+            buttons.forEach(btn => {
+                if (btn.textContent.toLowerCase().includes('new lease')) {
+                    btn.classList.add('active');
+                }
+            });
             
             // Reset tenant sections
             document.getElementById('tenant-count').value = '1';
@@ -870,9 +883,11 @@
                 leaseData[key] = value;
             }
             
-            // Store renewal info for later use, but remove from database save
-            const isRenewal = leaseData.is_renewal === 'true';
-            const previousLeaseId = leaseData.previous_lease_id;
+            // Store renewal info for later use in PDF generation, but remove from database save
+            const renewalInfo = {
+                isRenewal: leaseData.is_renewal === 'true',
+                previousLeaseId: leaseData.previous_lease_id
+            };
             delete leaseData.is_renewal;
             delete leaseData.previous_lease_id;
             
@@ -901,17 +916,21 @@
                 showAlert('Lease saved successfully!', 'success');
                 
                 // If this is a renewal, terminate the old lease
-                if (leaseData.is_renewal === 'true' && leaseData.previous_lease_id) {
+                if (renewalInfo.isRenewal && renewalInfo.previousLeaseId) {
                     try {
                         await supabaseClient
                             .from('leases')
                             .update({ status: 'terminated' })
-                            .eq('id', leaseData.previous_lease_id);
+                            .eq('id', renewalInfo.previousLeaseId);
                     } catch (terminateError) {
                         console.error('Error terminating old lease:', terminateError);
                         // Don't fail the whole process if old lease termination fails
                     }
                 }
+                
+                // Add renewal info back to leaseData for PDF generation
+                leaseData.is_renewal = renewalInfo.isRenewal ? 'true' : 'false';
+                leaseData.previous_lease_id = renewalInfo.previousLeaseId;
                 
                 // Generate PDF
                 generatePDF(leaseData);
