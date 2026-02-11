@@ -870,6 +870,12 @@
                 leaseData[key] = value;
             }
             
+            // Store renewal info for later use, but remove from database save
+            const isRenewal = leaseData.is_renewal === 'true';
+            const previousLeaseId = leaseData.previous_lease_id;
+            delete leaseData.is_renewal;
+            delete leaseData.previous_lease_id;
+            
             // Build tenant names string for display
             const tenantNames = [];
             if (leaseData.tenant1_name) tenantNames.push(leaseData.tenant1_name);
@@ -946,7 +952,23 @@
             doc.text('1 - RESIDENTIAL LEASE AGREEMENT', leftMargin, y);
             
             y += 10;
+            
+            // Renewal indicator if applicable
+            if (leaseData.is_renewal === 'true' && leaseData.previous_lease_id) {
+                doc.setFontSize(10);
+                doc.setFont('times', 'bold');
+                doc.text('☑', leftMargin, y);
+                doc.text('LEASE RENEWAL', leftMargin + 5, y);
+                y += 5;
+                doc.setFont('times', 'normal');
+                doc.setFontSize(9);
+                // Note: We don't have the previous lease date in leaseData, so we'll just indicate it's a renewal
+                doc.text('This lease renews and replaces the previous lease agreement for this property.', leftMargin + 5, y);
+                y += 8;
+            }
+            
             doc.setFontSize(11);
+            doc.setFont('times', 'bold');
             doc.text('1.1 TERMS AND PARTIES', leftMargin, y);
             
             y += 6;
@@ -1105,8 +1127,69 @@
             const splitDog = doc.splitTextToSize(dogLine, 165);
             doc.text(splitDog, leftMargin + 5, y);
             
+            // Add new page for signatures (Page 19)
+            doc.addPage();
+            y = 20;
+            
+            // Section 9 - Sign and Accept
+            doc.setFontSize(14);
+            doc.setFont('times', 'bold');
+            doc.text('9. Sign and Accept', leftMargin, y);
+            
+            y += 10;
+            doc.setFontSize(11);
+            doc.text('9.1 SIGN BELOW', leftMargin, y);
+            
+            y += 8;
+            doc.setFontSize(10);
+            doc.setFont('times', 'normal');
+            doc.text('The Lease has been executed by the parties on the dates indicated below.', leftMargin, y);
+            
+            y += 15;
+            
+            // Tenant signatures
+            const tenantCount = parseInt(leaseData.tenant_count) || 1;
+            
+            for (let i = 1; i <= tenantCount; i++) {
+                const tenantName = leaseData[`tenant${i}_name`] || `Tenant ${i}`;
+                
+                // X mark
+                doc.setFontSize(16);
+                doc.text('X', leftMargin, y);
+                
+                // Signature line
+                doc.setFontSize(10);
+                doc.line(leftMargin + 10, y, leftMargin + 90, y);
+                
+                y += 6;
+                
+                // Name and role
+                doc.setFont('times', 'normal');
+                doc.text(`${tenantName} - Lessee`, leftMargin + 10, y);
+                
+                y += 20;
+            }
+            
+            y += 10;
+            
+            // Landlord signature
+            doc.setFontSize(16);
+            doc.text('X', leftMargin, y);
+            
+            // Signature line
+            doc.setFontSize(10);
+            doc.line(leftMargin + 10, y, leftMargin + 90, y);
+            
+            y += 6;
+            
+            // Name and role
+            doc.setFont('times', 'normal');
+            doc.text('Colette Fritzlen', leftMargin + 10, y);
+            y += 5;
+            doc.text('Lessor', leftMargin + 10, y);
+            
             // Save PDF
-            const filename = `Lease_Page1_${leaseData.tenant_names ? leaseData.tenant_names.replace(/\s+/g, '_') : 'Draft'}_${leaseData.lease_start || 'Draft'}.pdf`;
+            const filename = `Lease_Pages1-19_${leaseData.tenant_names ? leaseData.tenant_names.replace(/\s+/g, '_') : 'Draft'}_${leaseData.lease_start || 'Draft'}.pdf`;
             doc.save(filename);
         }
 
