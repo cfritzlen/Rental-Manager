@@ -1004,7 +1004,7 @@
         // Load dashboard
         async function loadDashboard() {
             try {
-                const { data: leases, error } = await supabase
+                const { data: leases, error } = await supabaseClient
                     .from('leases')
                     .select('*')
                     .order('lease_start', { ascending: false });
@@ -1052,7 +1052,7 @@
         // Load all leases
         async function loadAllLeases() {
             try {
-                const { data: leases, error } = await supabase
+                const { data: leases, error } = await supabaseClient
                     .from('leases')
                     .select('*')
                     .order('lease_start', { ascending: false });
