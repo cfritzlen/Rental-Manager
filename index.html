@@ -702,7 +702,11 @@
         }
 
         .payment-row.paid {
-            opacity: 0.55;
+            opacity: 0.75;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            padding: 10px;
+            margin: 4px 0;
         }
 
         .payment-row .pr-label {
@@ -1434,12 +1438,12 @@
                                 </div>
                                 <div class="form-group full-width">
                                     <label>Receipts (up to 3 — photos or PDFs)</label>
-                                    <div class="receipt-upload-area" id="receipt-drop-area" onclick="document.getElementById('receipt-input').click()">
-                                        <label class="receipt-upload-label">
+                                    <div class="receipt-upload-area" id="receipt-drop-area">
+                                        <div class="receipt-upload-label" onclick="document.getElementById('receipt-input').click()">
                                             <span class="icon">📎</span>
                                             <span>Tap to take photo, choose files, or drag & drop here</span>
-                                            <input type="file" id="receipt-input" accept="image/*,application/pdf" multiple onchange="handleReceiptFiles(this.files)">
-                                        </label>
+                                        </div>
+                                        <input type="file" id="receipt-input" accept="image/*,.heic,.heif,application/pdf" multiple onchange="handleReceiptFiles(this.files)" style="display:none;">
                                     </div>
                                     <div class="receipt-thumbnails" id="receipt-thumbnails"></div>
                                 </div>
@@ -1603,27 +1607,31 @@
                     <!-- Summary Bar -->
                     <div class="payment-summary-bar">
                         <div class="ps-item">
-                            <div class="ps-label">Expected</div>
-                            <div class="ps-value" id="ps-expected">$0</div>
+                            <div class="ps-label">🏠 Rent Expected</div>
+                            <div class="ps-value" id="ps-rent-expected">$0</div>
                         </div>
                         <div class="ps-item">
-                            <div class="ps-label">Collected</div>
-                            <div class="ps-value" id="ps-collected">$0</div>
+                            <div class="ps-label">🏠 Rent Collected</div>
+                            <div class="ps-value" id="ps-rent-collected">$0</div>
                         </div>
                         <div class="ps-item">
-                            <div class="ps-label">Outstanding</div>
-                            <div class="ps-value danger" id="ps-outstanding">$0</div>
+                            <div class="ps-label">🏦 Mortgages Due</div>
+                            <div class="ps-value" id="ps-mortgage-expected">$0</div>
+                        </div>
+                        <div class="ps-item">
+                            <div class="ps-label">🏦 Mortgages Paid</div>
+                            <div class="ps-value" id="ps-mortgage-paid">$0</div>
                         </div>
                     </div>
 
                     <!-- Unpaid Section -->
-                    <div class="payment-section-header">⏳ Unpaid</div>
+                    <div class="payment-section-header">⏳ Unpaid / Outstanding</div>
                     <div id="payments-unpaid">
                         <div class="loading">Loading...</div>
                     </div>
 
                     <!-- Paid Section -->
-                    <div class="payment-section-header">✅ Paid</div>
+                    <div class="payment-section-header" style="margin-top:30px;">✅ Paid</div>
                     <div id="payments-paid">
                         <div class="loading">No payments yet this month</div>
                     </div>
@@ -2566,7 +2574,11 @@
                 const file = files[i];
                 const isImage = file.type.startsWith('image/');
                 const isPdf = file.type === 'application/pdf';
-                if (!isImage && !isPdf) {
+                // iPhone sometimes has empty type for HEIC — check extension too
+                const ext = file.name.split('.').pop().toLowerCase();
+                const isImageExt = ['jpg','jpeg','png','gif','webp','heic','heif','bmp','tiff'].includes(ext);
+                const isPdfExt = ext === 'pdf';
+                if (!isImage && !isPdf && !isImageExt && !isPdfExt) {
                     showExpenseAlert('Only images and PDFs are allowed', 'error');
                     continue;
                 }
@@ -2612,7 +2624,8 @@
             pendingReceiptFiles.forEach((file, i) => {
                 const thumb = document.createElement('div');
                 thumb.className = 'receipt-thumb';
-                if (file.type === 'application/pdf') {
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (file.type === 'application/pdf' || ext === 'pdf') {
                     thumb.innerHTML = `
                         <div class="pdf-icon">PDF</div>
                         <button class="remove-receipt" onclick="removePendingReceipt(${i})" title="Remove">×</button>
@@ -2620,7 +2633,7 @@
                 } else {
                     const url = URL.createObjectURL(file);
                     thumb.innerHTML = `
-                        <img src="${url}" alt="Receipt">
+                        <img src="${url}" alt="Receipt" onerror="this.style.display='none';this.parentElement.insertAdjacentHTML('afterbegin','<div class=\\'pdf-icon\\' style=\\'background:#e0e7ff;color:#3730a3\\'>IMG</div>')">
                         <button class="remove-receipt" onclick="removePendingReceipt(${i})" title="Remove">×</button>
                     `;
                 }
@@ -3260,53 +3273,118 @@
             const unpaidContainer = document.getElementById('payments-unpaid');
             const paidContainer = document.getElementById('payments-paid');
 
-            const unpaidRows = [];
-            const paidRows = [];
-            let totalExpected = 0;
-            let totalCollected = 0;
+            const unpaidRent = [], unpaidMortgage = [];
+            const paidRent = [], paidMortgage = [];
+            let rentExpected = 0, rentCollected = 0;
+            let mortgageExpected = 0, mortgagePaid = 0;
 
             paymentDefaults.forEach(d => {
                 const existing = monthlyPayments.find(p => p.payment_default_id === d.id);
-                totalExpected += parseFloat(d.default_amount);
+                const isPaid = existing && existing.date_paid;
+                const defaultAmt = parseFloat(d.default_amount);
+                const paidAmt = isPaid ? parseFloat(existing.amount_paid || 0) : 0;
 
-                if (existing && existing.date_paid) {
-                    totalCollected += parseFloat(existing.amount_paid || d.default_amount);
-                    paidRows.push(renderPaymentRow(d, existing, true));
+                if (d.type === 'rent') {
+                    rentExpected += defaultAmt;
+                    rentCollected += paidAmt;
                 } else {
-                    unpaidRows.push(renderPaymentRow(d, existing, false));
+                    mortgageExpected += defaultAmt;
+                    mortgagePaid += paidAmt;
+                }
+
+                if (isPaid) {
+                    // Paid row (editable)
+                    const row = renderPaymentRow(d, existing, true);
+                    if (d.type === 'rent') paidRent.push(row);
+                    else paidMortgage.push(row);
+
+                    // Check for partial payment — remaining goes to unpaid
+                    if (paidAmt < defaultAmt) {
+                        const remaining = defaultAmt - paidAmt;
+                        const partialRow = renderPartialRow(d, existing, remaining);
+                        if (d.type === 'rent') unpaidRent.push(partialRow);
+                        else unpaidMortgage.push(partialRow);
+                    }
+                } else {
+                    // Fully unpaid
+                    const row = renderPaymentRow(d, existing, false);
+                    if (d.type === 'rent') unpaidRent.push(row);
+                    else unpaidMortgage.push(row);
                 }
             });
 
-            unpaidContainer.innerHTML = unpaidRows.length
-                ? unpaidRows.join('')
-                : '<div style="padding:12px;color:var(--text-secondary);font-size:14px;">🎉 All payments received this month!</div>';
+            // Build unpaid HTML
+            let unpaidHtml = '';
+            if (unpaidRent.length) {
+                unpaidHtml += '<div style="font-size:13px;font-weight:600;color:var(--text-secondary);padding:8px 0 4px;">🏠 Rent</div>';
+                unpaidHtml += unpaidRent.join('');
+            }
+            if (unpaidMortgage.length) {
+                unpaidHtml += '<div style="font-size:13px;font-weight:600;color:var(--text-secondary);padding:8px 0 4px;' + (unpaidRent.length ? 'margin-top:12px;' : '') + '">🏦 Mortgage</div>';
+                unpaidHtml += unpaidMortgage.join('');
+            }
+            unpaidContainer.innerHTML = unpaidHtml || '<div style="padding:12px;color:var(--success);font-size:14px;">🎉 Everything is paid this month!</div>';
 
-            paidContainer.innerHTML = paidRows.length
-                ? paidRows.join('')
-                : '<div style="padding:12px;color:var(--text-secondary);font-size:14px;">No payments recorded yet</div>';
+            // Build paid HTML
+            let paidHtml = '';
+            if (paidRent.length) {
+                paidHtml += '<div style="font-size:13px;font-weight:600;color:var(--text-secondary);padding:8px 0 4px;">🏠 Rent</div>';
+                paidHtml += paidRent.join('');
+            }
+            if (paidMortgage.length) {
+                paidHtml += '<div style="font-size:13px;font-weight:600;color:var(--text-secondary);padding:8px 0 4px;' + (paidRent.length ? 'margin-top:12px;' : '') + '">🏦 Mortgage</div>';
+                paidHtml += paidMortgage.join('');
+            }
+            paidContainer.innerHTML = paidHtml || '<div style="padding:12px;color:var(--text-secondary);font-size:14px;">No payments recorded yet</div>';
 
             // Update summary
-            document.getElementById('ps-expected').textContent = '$' + totalExpected.toLocaleString('en-US', {minimumFractionDigits: 2});
-            document.getElementById('ps-collected').textContent = '$' + totalCollected.toLocaleString('en-US', {minimumFractionDigits: 2});
-            const outstanding = totalExpected - totalCollected;
-            document.getElementById('ps-outstanding').textContent = '$' + outstanding.toLocaleString('en-US', {minimumFractionDigits: 2});
+            const fmt = (v) => '$' + v.toLocaleString('en-US', {minimumFractionDigits: 2});
+            document.getElementById('ps-rent-expected').textContent = fmt(rentExpected);
+            document.getElementById('ps-rent-collected').textContent = fmt(rentCollected);
+            document.getElementById('ps-mortgage-expected').textContent = fmt(mortgageExpected);
+            document.getElementById('ps-mortgage-paid').textContent = fmt(mortgagePaid);
+        }
+
+        // Render a partial/remaining balance row in unpaid
+        function renderPartialRow(d, existing, remaining) {
+            const paymentId = existing ? existing.id : '';
+            return `
+                <div class="payment-row" data-default-id="${d.id}" data-payment-id="${paymentId}" style="background:#fef3c7;border-radius:6px;padding:10px;margin:4px 0;">
+                    <div class="pr-label">⚠️ ${d.label} <small>(remaining)</small></div>
+                    <div class="pr-property">${d.property_name}</div>
+                    <div>
+                        <input type="number" step="0.01" value="${remaining.toFixed(2)}" id="partial-amt-${d.id}"
+                            style="width:100px;">
+                    </div>
+                    <div class="pr-due">of $${parseFloat(d.default_amount).toFixed(2)}</div>
+                    <div>
+                        <input type="date" id="partial-date-${d.id}"
+                            onchange="addAdditionalPayment(${d.id}, this.value, document.getElementById('partial-amt-${d.id}').value)">
+                    </div>
+                    <div class="pr-status">
+                        <span style="color:#92400e;font-size:12px;">Partial</span>
+                    </div>
+                </div>
+            `;
         }
 
         function renderPaymentRow(d, existing, isPaid) {
             const amount = existing ? existing.amount_paid : d.default_amount;
             const datePaid = existing ? existing.date_paid || '' : '';
             const paymentId = existing ? existing.id : '';
-            const typeIcon = d.type === 'rent' ? '🏠' : '🏦';
             const paidClass = isPaid ? 'paid' : '';
+            const statusLabel = isPaid 
+                ? '<span class="paid-check">✓ Paid</span>'
+                : '<span style="color:var(--danger);font-size:13px;">Unpaid</span>';
 
             return `
                 <div class="payment-row ${paidClass}" data-default-id="${d.id}" data-payment-id="${paymentId}">
-                    <div class="pr-label">${typeIcon} ${d.label}</div>
+                    <div class="pr-label">${d.label}</div>
                     <div class="pr-property">${d.property_name}</div>
                     <div>
                         <input type="number" step="0.01" value="${parseFloat(amount).toFixed(2)}"
                             onchange="updatePaymentAmount(${d.id}, '${paymentId}', this.value)"
-                            style="width:100px;" ${isPaid ? '' : ''}>
+                            style="width:100px;">
                     </div>
                     <div class="pr-due">Due: ${d.due_day}${ordinalSuffix(d.due_day)}</div>
                     <div>
@@ -3314,7 +3392,7 @@
                             onchange="markPayment(${d.id}, '${paymentId}', this.value, this.closest('.payment-row').querySelector('input[type=number]').value)">
                     </div>
                     <div class="pr-status">
-                        ${isPaid ? '<span class="paid-check">✓</span>' : '<span style="color:var(--danger);font-size:13px;">Unpaid</span>'}
+                        ${statusLabel}
                     </div>
                 </div>
             `;
@@ -3381,6 +3459,45 @@
                 loadMonthlyPayments();
             } catch (error) {
                 console.error('Error updating amount:', error);
+                showPaymentAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        // Additional payment for partial amounts
+        async function addAdditionalPayment(defaultId, datePaid, additionalAmount) {
+            if (!datePaid) return;
+            const monthKey = getMonthKey(currentPaymentMonth);
+            const addAmt = parseFloat(additionalAmount);
+
+            try {
+                // Find the existing payment record
+                const existing = monthlyPayments.find(p => p.payment_default_id === defaultId);
+                
+                if (existing) {
+                    // Add to existing amount
+                    const newTotal = parseFloat(existing.amount_paid || 0) + addAmt;
+                    const { error } = await supabaseClient
+                        .from('payments')
+                        .update({ amount_paid: newTotal })
+                        .eq('id', existing.id);
+                    if (error) throw error;
+                } else {
+                    // Create new record with this amount
+                    const { error } = await supabaseClient
+                        .from('payments')
+                        .insert([{
+                            payment_default_id: defaultId,
+                            period: monthKey,
+                            amount_paid: addAmt,
+                            date_paid: datePaid
+                        }]);
+                    if (error) throw error;
+                }
+
+                showPaymentAlert('Additional payment recorded!', 'success');
+                loadMonthlyPayments();
+            } catch (error) {
+                console.error('Error saving additional payment:', error);
                 showPaymentAlert('Error: ' + error.message, 'error');
             }
         }
