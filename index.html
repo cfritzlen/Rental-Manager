@@ -7,6 +7,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏠</text></svg>">
     <script src="https://unpkg.com/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -488,6 +489,12 @@
             background: rgba(30, 64, 175, 0.03);
         }
 
+        .receipt-upload-area.drag-over {
+            border-color: var(--primary);
+            background: rgba(30, 64, 175, 0.08);
+            border-style: solid;
+        }
+
         .receipt-upload-area input[type="file"] {
             display: none;
         }
@@ -545,6 +552,19 @@
             align-items: center;
             justify-content: center;
             line-height: 1;
+        }
+
+        .receipt-thumb .pdf-icon {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fee2e2;
+            font-size: 14px;
+            font-weight: 600;
+            color: #991b1b;
+            cursor: pointer;
         }
 
         .receipt-badge {
@@ -947,6 +967,7 @@
                         <span>Expense Tracking</span>
                         <div class="expense-actions">
                             <button class="export-btn" onclick="exportExpensesCSV()">📥 Export CSV</button>
+                            <button class="export-btn" onclick="downloadAllReceipts()" style="background:#1e40af;">📷 Download Receipts</button>
                             <button class="toggle-form-btn" onclick="toggleExpenseForm()" id="add-expense-toggle">+ Add Expense</button>
                         </div>
                     </div>
@@ -993,17 +1014,29 @@
                                     <label>Vendor / Payee</label>
                                     <input type="text" id="expense-vendor" placeholder="e.g. Home Depot, Plumber">
                                 </div>
+                                <div class="form-group">
+                                    <label>Martin Hours</label>
+                                    <input type="number" id="expense-martin-hours" step="0.25" min="0" placeholder="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>Colette Hours</label>
+                                    <input type="number" id="expense-colette-hours" step="0.25" min="0" placeholder="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>Miles</label>
+                                    <input type="number" id="expense-miles" step="0.1" min="0" placeholder="0">
+                                </div>
                                 <div class="form-group full-width">
                                     <label>Description / Notes</label>
                                     <textarea id="expense-notes" rows="2" placeholder="Brief description of expense"></textarea>
                                 </div>
                                 <div class="form-group full-width">
-                                    <label>Receipts (up to 3 photos)</label>
-                                    <div class="receipt-upload-area" onclick="document.getElementById('receipt-input').click()">
+                                    <label>Receipts (up to 3 — photos or PDFs)</label>
+                                    <div class="receipt-upload-area" id="receipt-drop-area" onclick="document.getElementById('receipt-input').click()">
                                         <label class="receipt-upload-label">
-                                            <span class="icon">📷</span>
-                                            <span>Tap to take photo or choose files</span>
-                                            <input type="file" id="receipt-input" accept="image/*" capture="environment" multiple onchange="handleReceiptFiles(this.files)">
+                                            <span class="icon">📎</span>
+                                            <span>Tap to take photo, choose files, or drag & drop here</span>
+                                            <input type="file" id="receipt-input" accept="image/*,application/pdf" multiple onchange="handleReceiptFiles(this.files)">
                                         </label>
                                     </div>
                                     <div class="receipt-thumbnails" id="receipt-thumbnails"></div>
@@ -1074,13 +1107,15 @@
                                     <th>Category</th>
                                     <th>Amount</th>
                                     <th>Vendor</th>
-                                    <th>Notes</th>
+                                    <th>Martin Hrs</th>
+                                    <th>Colette Hrs</th>
+                                    <th>Miles</th>
                                     <th>Receipts</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="expenses-tbody">
-                                <tr><td colspan="8" class="loading">Click "Expenses" tab to load...</td></tr>
+                                <tr><td colspan="10" class="loading">Click "Expenses" tab to load...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1909,8 +1944,35 @@
         // ============ EXPENSES ============
 
         let allExpenses = [];
-        let pendingReceiptFiles = [];   // Files waiting to be uploaded
-        let existingReceiptUrls = [];   // URLs already saved (for edits)
+        let pendingReceiptFiles = [];
+        let existingReceiptUrls = [];
+
+        // Drag and drop setup (called after DOM loads)
+        function initDragDrop() {
+            const dropArea = document.getElementById('receipt-drop-area');
+            if (!dropArea) return;
+
+            ['dragenter', 'dragover'].forEach(evt => {
+                dropArea.addEventListener(evt, e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropArea.classList.add('drag-over');
+                });
+            });
+
+            ['dragleave', 'drop'].forEach(evt => {
+                dropArea.addEventListener(evt, e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropArea.classList.remove('drag-over');
+                });
+            });
+
+            dropArea.addEventListener('drop', e => {
+                const files = e.dataTransfer.files;
+                if (files.length) handleReceiptFiles(files);
+            });
+        }
 
         // Load ALL properties (buildings + units) into expense dropdowns
         async function loadExpenseProperties() {
@@ -1960,7 +2022,6 @@
             }
         }
 
-        // Toggle add expense form
         function toggleExpenseForm() {
             const container = document.getElementById('expense-form-container');
             container.classList.toggle('visible');
@@ -1968,10 +2029,10 @@
                 if (!document.getElementById('expense-date').value) {
                     document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
                 }
+                initDragDrop();
             }
         }
 
-        // Cancel edit / close form
         function cancelExpenseEdit() {
             document.getElementById('expense-form').reset();
             document.getElementById('expense-id').value = '';
@@ -1982,7 +2043,7 @@
             renderReceiptThumbnails();
         }
 
-        // Handle receipt file selection
+        // Handle receipt file selection — images AND PDFs
         function handleReceiptFiles(files) {
             const totalCount = pendingReceiptFiles.length + existingReceiptUrls.length;
             const remaining = 3 - totalCount;
@@ -1994,8 +2055,12 @@
 
             for (let i = 0; i < Math.min(files.length, remaining); i++) {
                 const file = files[i];
-                if (!file.type.startsWith('image/')) continue;
-                // Cap at 10MB
+                const isImage = file.type.startsWith('image/');
+                const isPdf = file.type === 'application/pdf';
+                if (!isImage && !isPdf) {
+                    showExpenseAlert('Only images and PDFs are allowed', 'error');
+                    continue;
+                }
                 if (file.size > 10 * 1024 * 1024) {
                     showExpenseAlert('File too large (max 10MB): ' + file.name, 'error');
                     continue;
@@ -2003,9 +2068,14 @@
                 pendingReceiptFiles.push(file);
             }
 
-            // Clear the input so same file can be re-selected
             document.getElementById('receipt-input').value = '';
             renderReceiptThumbnails();
+        }
+
+        // Helper: check if URL is a PDF
+        function isPdfUrl(url) {
+            const lower = url.toLowerCase();
+            return lower.includes('.pdf') || lower.includes('application/pdf');
         }
 
         // Render thumbnail previews in form
@@ -2013,26 +2083,38 @@
             const container = document.getElementById('receipt-thumbnails');
             container.innerHTML = '';
 
-            // Show existing (already uploaded) receipts
             existingReceiptUrls.forEach((url, i) => {
                 const thumb = document.createElement('div');
                 thumb.className = 'receipt-thumb';
-                thumb.innerHTML = `
-                    <img src="${url}" onclick="openLightbox(existingReceiptUrls, ${i})" alt="Receipt">
-                    <button class="remove-receipt" onclick="removeExistingReceipt(${i})" title="Remove">×</button>
-                `;
+                if (isPdfUrl(url)) {
+                    thumb.innerHTML = `
+                        <div class="pdf-icon" onclick="window.open('${url}', '_blank')">PDF</div>
+                        <button class="remove-receipt" onclick="removeExistingReceipt(${i})" title="Remove">×</button>
+                    `;
+                } else {
+                    thumb.innerHTML = `
+                        <img src="${url}" onclick="openLightbox(existingReceiptUrls, ${i})" alt="Receipt">
+                        <button class="remove-receipt" onclick="removeExistingReceipt(${i})" title="Remove">×</button>
+                    `;
+                }
                 container.appendChild(thumb);
             });
 
-            // Show pending (not yet uploaded) files
             pendingReceiptFiles.forEach((file, i) => {
                 const thumb = document.createElement('div');
                 thumb.className = 'receipt-thumb';
-                const url = URL.createObjectURL(file);
-                thumb.innerHTML = `
-                    <img src="${url}" alt="Receipt">
-                    <button class="remove-receipt" onclick="removePendingReceipt(${i})" title="Remove">×</button>
-                `;
+                if (file.type === 'application/pdf') {
+                    thumb.innerHTML = `
+                        <div class="pdf-icon">PDF</div>
+                        <button class="remove-receipt" onclick="removePendingReceipt(${i})" title="Remove">×</button>
+                    `;
+                } else {
+                    const url = URL.createObjectURL(file);
+                    thumb.innerHTML = `
+                        <img src="${url}" alt="Receipt">
+                        <button class="remove-receipt" onclick="removePendingReceipt(${i})" title="Remove">×</button>
+                    `;
+                }
                 container.appendChild(thumb);
             });
         }
@@ -2043,18 +2125,15 @@
         }
 
         function removeExistingReceipt(index) {
-            // Optionally delete from storage too
             const url = existingReceiptUrls[index];
             existingReceiptUrls.splice(index, 1);
             renderReceiptThumbnails();
-            // Try to delete from storage (best effort)
             try {
                 const path = url.split('/receipts/')[1];
                 if (path) supabaseClient.storage.from('receipts').remove([decodeURIComponent(path)]);
             } catch(e) { console.warn('Could not delete file from storage', e); }
         }
 
-        // Upload a single receipt file to Supabase Storage
         async function uploadReceipt(file) {
             const timestamp = Date.now();
             const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -2062,14 +2141,10 @@
 
             const { data, error } = await supabaseClient.storage
                 .from('receipts')
-                .upload(filePath, file, {
-                    cacheControl: '3600',
-                    upsert: false
-                });
+                .upload(filePath, file, { cacheControl: '3600', upsert: false });
 
             if (error) throw error;
 
-            // Get public URL
             const { data: urlData } = supabaseClient.storage
                 .from('receipts')
                 .getPublicUrl(filePath);
@@ -2077,7 +2152,7 @@
             return urlData.publicUrl;
         }
 
-        // Save expense (add or update) with receipt uploads
+        // Save expense with new fields
         async function saveExpense(event) {
             event.preventDefault();
             
@@ -2089,14 +2164,12 @@
             const expenseId = document.getElementById('expense-id').value;
 
             try {
-                // Upload any pending receipt files
                 const newUrls = [];
                 for (const file of pendingReceiptFiles) {
                     const url = await uploadReceipt(file);
                     newUrls.push(url);
                 }
 
-                // Combine existing + new URLs
                 const allReceiptUrls = [...existingReceiptUrls, ...newUrls];
 
                 const expenseData = {
@@ -2105,6 +2178,9 @@
                     category: document.getElementById('expense-category').value,
                     amount: parseFloat(document.getElementById('expense-amount').value),
                     vendor: document.getElementById('expense-vendor').value || null,
+                    martin_hours: parseFloat(document.getElementById('expense-martin-hours').value) || null,
+                    colette_hours: parseFloat(document.getElementById('expense-colette-hours').value) || null,
+                    miles: parseFloat(document.getElementById('expense-miles').value) || null,
                     notes: document.getElementById('expense-notes').value || null,
                     receipt_urls: allReceiptUrls.length ? allReceiptUrls : null
                 };
@@ -2135,7 +2211,6 @@
             }
         }
 
-        // Load and display expenses with filters
         async function loadExpenses() {
             try {
                 let query = supabaseClient
@@ -2161,16 +2236,15 @@
             } catch (error) {
                 console.error('Error loading expenses:', error);
                 document.getElementById('expenses-tbody').innerHTML = 
-                    '<tr><td colspan="8" class="loading">Error loading expenses</td></tr>';
+                    '<tr><td colspan="10" class="loading">Error loading expenses</td></tr>';
             }
         }
 
-        // Render expenses table
         function renderExpenses(expenses) {
             const tbody = document.getElementById('expenses-tbody');
             
             if (!expenses.length) {
-                tbody.innerHTML = '<tr><td colspan="8" class="loading">No expenses found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" class="loading">No expenses found</td></tr>';
                 document.getElementById('expense-total').textContent = '$0.00';
                 document.getElementById('expense-count').textContent = '0';
                 return;
@@ -2183,8 +2257,10 @@
             tbody.innerHTML = expenses.map(e => {
                 const receipts = e.receipt_urls || [];
                 const receiptCell = receipts.length 
-                    ? `<button class="receipt-badge" onclick='openLightbox(${JSON.stringify(receipts)}, 0)'>📎 ${receipts.length} receipt${receipts.length > 1 ? "s" : ""}</button>`
+                    ? `<button class="receipt-badge" onclick='viewReceipts(${e.id})'>📎 ${receipts.length}</button>`
                     : '<span style="color:#94a3b8;">—</span>';
+
+                const fmtHrs = (v) => v ? v : '—';
 
                 return `
                 <tr>
@@ -2192,8 +2268,10 @@
                     <td>${e.property_name || ''}</td>
                     <td><span class="status-badge" style="background:#e0e7ff;color:#3730a3;">${e.category}</span></td>
                     <td><strong>$${parseFloat(e.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></td>
-                    <td>${e.vendor || '-'}</td>
-                    <td>${e.notes || '-'}</td>
+                    <td>${e.vendor || '—'}</td>
+                    <td>${fmtHrs(e.martin_hours)}</td>
+                    <td>${fmtHrs(e.colette_hours)}</td>
+                    <td>${e.miles || '—'}</td>
                     <td>${receiptCell}</td>
                     <td>
                         <button class="action-btn edit-btn" onclick="editExpense(${e.id})">Edit</button>
@@ -2203,14 +2281,30 @@
             }).join('');
         }
 
-        // Format date for display
+        // View receipts — handles both images (lightbox) and PDFs (new tab)
+        function viewReceipts(id) {
+            const expense = allExpenses.find(e => e.id === id);
+            if (!expense || !expense.receipt_urls) return;
+
+            const urls = expense.receipt_urls;
+            const imageUrls = urls.filter(u => !isPdfUrl(u));
+            const pdfUrls = urls.filter(u => isPdfUrl(u));
+
+            // Open PDFs in new tabs
+            pdfUrls.forEach(url => window.open(url, '_blank'));
+
+            // Open images in lightbox
+            if (imageUrls.length) {
+                openLightbox(imageUrls, 0);
+            }
+        }
+
         function formatDate(dateStr) {
             if (!dateStr) return '';
             const d = new Date(dateStr + 'T00:00:00');
             return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         }
 
-        // Edit an expense
         function editExpense(id) {
             const expense = allExpenses.find(e => e.id === id);
             if (!expense) return;
@@ -2221,24 +2315,25 @@
             document.getElementById('expense-category').value = expense.category;
             document.getElementById('expense-amount').value = expense.amount;
             document.getElementById('expense-vendor').value = expense.vendor || '';
+            document.getElementById('expense-martin-hours').value = expense.martin_hours || '';
+            document.getElementById('expense-colette-hours').value = expense.colette_hours || '';
+            document.getElementById('expense-miles').value = expense.miles || '';
             document.getElementById('expense-notes').value = expense.notes || '';
             document.getElementById('expense-save-btn').textContent = 'Update Expense';
             
-            // Load existing receipts
             pendingReceiptFiles = [];
             existingReceiptUrls = expense.receipt_urls ? [...expense.receipt_urls] : [];
             renderReceiptThumbnails();
 
             document.getElementById('expense-form-container').classList.add('visible');
+            initDragDrop();
             window.scrollTo(0, 0);
         }
 
-        // Delete an expense (also cleans up receipt files)
         async function deleteExpense(id) {
             if (!confirm('Delete this expense?')) return;
 
             try {
-                // Find expense to get receipt URLs for cleanup
                 const expense = allExpenses.find(e => e.id === id);
                 
                 const { error } = await supabaseClient
@@ -2247,7 +2342,6 @@
                     .eq('id', id);
                 if (error) throw error;
 
-                // Clean up receipt files from storage
                 if (expense && expense.receipt_urls && expense.receipt_urls.length) {
                     const paths = expense.receipt_urls.map(url => {
                         const parts = url.split('/receipts/');
@@ -2271,9 +2365,12 @@
         let lightboxIndex = 0;
 
         function openLightbox(urls, index) {
-            lightboxUrls = urls;
+            // Filter out PDFs — those open in new tab
+            const imageOnly = urls.filter(u => !isPdfUrl(u));
+            if (!imageOnly.length) return;
+            lightboxUrls = imageOnly;
             lightboxIndex = index;
-            document.getElementById('lb-image').src = urls[index];
+            document.getElementById('lb-image').src = imageOnly[index];
             document.getElementById('receipt-lightbox').classList.add('active');
         }
 
@@ -2287,20 +2384,23 @@
             document.getElementById('lb-image').src = lightboxUrls[lightboxIndex];
         }
 
-        // Export filtered expenses to CSV
+        // Export CSV with new fields
         function exportExpensesCSV() {
             if (!allExpenses.length) {
                 showExpenseAlert('No expenses to export', 'error');
                 return;
             }
 
-            const headers = ['Date', 'Property', 'Category', 'Amount', 'Vendor', 'Notes', 'Receipts'];
+            const headers = ['Date', 'Property', 'Category', 'Amount', 'Vendor', 'Martin Hours', 'Colette Hours', 'Miles', 'Notes', 'Receipts'];
             const rows = allExpenses.map(e => [
                 e.expense_date,
                 `"${(e.property_name || '').replace(/"/g, '""')}"`,
                 e.category,
                 e.amount,
                 `"${(e.vendor || '').replace(/"/g, '""')}"`,
+                e.martin_hours || '',
+                e.colette_hours || '',
+                e.miles || '',
                 `"${(e.notes || '').replace(/"/g, '""')}"`,
                 `"${(e.receipt_urls || []).join(' | ')}"`
             ]);
@@ -2317,7 +2417,70 @@
             URL.revokeObjectURL(url);
         }
 
-        // Show expense alert
+        // Download receipts as ZIP — filename: PropertyName_YYMMDD_Amount.ext
+        async function downloadAllReceipts() {
+            const withReceipts = allExpenses.filter(e => e.receipt_urls && e.receipt_urls.length);
+
+            if (!withReceipts.length) {
+                showExpenseAlert('No receipts found in current view', 'error');
+                return;
+            }
+
+            const totalFiles = withReceipts.reduce((sum, e) => sum + e.receipt_urls.length, 0);
+            showExpenseAlert(`Downloading ${totalFiles} receipt(s)... please wait`, 'success');
+
+            try {
+                const zip = new JSZip();
+                let downloaded = 0;
+
+                for (const expense of withReceipts) {
+                    for (let i = 0; i < expense.receipt_urls.length; i++) {
+                        const url = expense.receipt_urls[i];
+
+                        // Build filename: PropertyName_YYMMDD_Amount.ext
+                        const safeProp = (expense.property_name || 'unknown').replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').substring(0, 50);
+                        const d = expense.expense_date || '000000';
+                        const yy = d.substring(2, 4);
+                        const mm = d.substring(5, 7);
+                        const dd = d.substring(8, 10);
+                        const yymmdd = `${yy}${mm}${dd}`;
+                        const amt = parseFloat(expense.amount || 0).toFixed(2);
+                        const origExt = url.split('.').pop().split('?')[0] || 'jpg';
+                        const ext = origExt.length > 5 ? 'jpg' : origExt;
+                        const suffix = expense.receipt_urls.length > 1 ? `_${i + 1}` : '';
+                        const fileName = `${safeProp}_${yymmdd}_${amt}${suffix}.${ext}`;
+
+                        try {
+                            const response = await fetch(url);
+                            if (!response.ok) throw new Error('Failed to fetch');
+                            const blob = await response.blob();
+                            zip.file(fileName, blob);
+                            downloaded++;
+                        } catch (fetchErr) {
+                            console.warn('Could not download receipt:', url, fetchErr);
+                        }
+                    }
+                }
+
+                if (downloaded === 0) {
+                    showExpenseAlert('Could not download any receipt files', 'error');
+                    return;
+                }
+
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(zipBlob);
+                link.download = `receipts_${new Date().toISOString().split('T')[0]}.zip`;
+                link.click();
+                URL.revokeObjectURL(link.href);
+
+                showExpenseAlert(`Downloaded ${downloaded} receipt(s) as ZIP`, 'success');
+            } catch (error) {
+                console.error('Error creating ZIP:', error);
+                showExpenseAlert('Error downloading receipts: ' + error.message, 'error');
+            }
+        }
+
         function showExpenseAlert(message, type) {
             const container = document.getElementById('expense-alert-container');
             container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
