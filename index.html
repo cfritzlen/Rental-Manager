@@ -375,6 +375,7 @@
                     <button class="nav-btn active" onclick="showView('dashboard')">Dashboard</button>
                     <button class="nav-btn" onclick="resetAndShowNewLease()">New Lease</button>
                     <button class="nav-btn" onclick="showView('leases')">All Leases</button>
+                    <button class="nav-btn" onclick="showView('expenses')">Expenses</button>
                 </nav>
             </div>
         </div>
@@ -536,17 +537,8 @@
                         <div class="form-grid">
                             <div class="form-group full-width">
                                 <label>Property & Unit *</label>
-                                <select name="property_address" required>
-                                    <option value="">Select Property</option>
-                                    <option value="180 N Courtland St, Unit 180A, East Stroudsburg, PA 18301">180 N Courtland St - Unit 180A</option>
-                                    <option value="180 N Courtland St, Unit 180B, East Stroudsburg, PA 18301">180 N Courtland St - Unit 180B</option>
-                                    <option value="180 N Courtland St, Unit 182A, East Stroudsburg, PA 18301">180 N Courtland St - Unit 182A</option>
-                                    <option value="180 N Courtland St, Unit 182B, East Stroudsburg, PA 18301">180 N Courtland St - Unit 182B</option>
-                                    <option value="503 Lindbergh Ave, 1st Floor, Stroudsburg, PA 18360">503 Lindbergh Ave - 1st Floor</option>
-                                    <option value="503 Lindbergh Ave, 2nd Floor, Stroudsburg, PA 18360">503 Lindbergh Ave - 2nd Floor</option>
-                                    <option value="1028 Poplar Valley Rd, Stroudsburg, PA 18360">1028 Poplar Valley Rd - Single Family</option>
-                                    <option value="1038 Poplar Valley Rd, Upstairs, Stroudsburg, PA 18360">1038 Poplar Valley Rd - Upstairs</option>
-                                    <option value="1038 Poplar Valley Rd, Downstairs, Stroudsburg, PA 18360">1038 Poplar Valley Rd - Downstairs</option>
+                                <select name="property_address" id="property-dropdown" required>
+                                    <option value="">Loading properties...</option>
                                 </select>
                             </div>
                         </div>
@@ -758,6 +750,9 @@
             // Reset tenant sections
             document.getElementById('tenant-count').value = '1';
             updateTenantSections();
+            
+            // Reload properties dropdown
+            loadProperties();
         }
 
         // Show/hide tenant sections based on count
@@ -1211,6 +1206,35 @@
             doc.save(filename);
         }
 
+        // Load properties into dropdown
+        async function loadProperties() {
+            try {
+                const { data: properties, error } = await supabaseClient
+                    .from('properties')
+                    .select('*')
+                    .eq('is_building_level', false)  // Only load units, not buildings
+                    .eq('status', 'active')
+                    .order('property_name', { ascending: true });
+
+                if (error) throw error;
+
+                const dropdown = document.getElementById('property-dropdown');
+                dropdown.innerHTML = '<option value="">Select Property</option>';
+                
+                properties.forEach(prop => {
+                    const option = document.createElement('option');
+                    option.value = prop.property_name;
+                    option.textContent = prop.property_name;
+                    dropdown.appendChild(option);
+                });
+
+            } catch (error) {
+                console.error('Error loading properties:', error);
+                const dropdown = document.getElementById('property-dropdown');
+                dropdown.innerHTML = '<option value="">Error loading properties</option>';
+            }
+        }
+
         // Load dashboard
         async function loadDashboard() {
             try {
@@ -1467,6 +1491,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             initSupabase();
             loadDashboard();
+            loadProperties();  // Load property dropdown
         });
     </script>
 </body>
