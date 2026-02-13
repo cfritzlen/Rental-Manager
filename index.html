@@ -3262,6 +3262,30 @@
                 if (pErr) throw pErr;
                 monthlyPayments = payments || [];
 
+                // Auto-create records for defaults that don't have one yet this month
+                // This stamps amount_owed so past months keep their original amount
+                const missing = paymentDefaults.filter(d => 
+                    !monthlyPayments.find(p => p.payment_default_id === d.id)
+                );
+
+                if (missing.length) {
+                    const newRecords = missing.map(d => ({
+                        payment_default_id: d.id,
+                        period: monthKey,
+                        amount_paid: d.default_amount,
+                        amount_owed: d.default_amount,
+                        date_paid: null
+                    }));
+
+                    const { data: inserted, error: iErr } = await supabaseClient
+                        .from('payments')
+                        .insert(newRecords)
+                        .select();
+
+                    if (iErr) throw iErr;
+                    if (inserted) monthlyPayments.push(...inserted);
+                }
+
                 renderMonthlyPayments();
             } catch (error) {
                 console.error('Error loading payments:', error);
@@ -3281,33 +3305,32 @@
             paymentDefaults.forEach(d => {
                 const existing = monthlyPayments.find(p => p.payment_default_id === d.id);
                 const isPaid = existing && existing.date_paid;
-                const defaultAmt = parseFloat(d.default_amount);
+                // Use stamped amount_owed if available, otherwise fall back to current default
+                const owedAmt = existing && existing.amount_owed ? parseFloat(existing.amount_owed) : parseFloat(d.default_amount);
                 const paidAmt = isPaid ? parseFloat(existing.amount_paid || 0) : 0;
 
                 if (d.type === 'rent') {
-                    rentExpected += defaultAmt;
+                    rentExpected += owedAmt;
                     rentCollected += paidAmt;
                 } else {
-                    mortgageExpected += defaultAmt;
+                    mortgageExpected += owedAmt;
                     mortgagePaid += paidAmt;
                 }
 
                 if (isPaid) {
-                    // Paid row (editable)
-                    const row = renderPaymentRow(d, existing, true);
+                    const row = renderPaymentRow(d, existing, true, owedAmt);
                     if (d.type === 'rent') paidRent.push(row);
                     else paidMortgage.push(row);
 
-                    // Check for partial payment — remaining goes to unpaid
-                    if (paidAmt < defaultAmt) {
-                        const remaining = defaultAmt - paidAmt;
-                        const partialRow = renderPartialRow(d, existing, remaining);
+                    // Check for partial payment
+                    if (paidAmt < owedAmt) {
+                        const remaining = owedAmt - paidAmt;
+                        const partialRow = renderPartialRow(d, existing, remaining, owedAmt);
                         if (d.type === 'rent') unpaidRent.push(partialRow);
                         else unpaidMortgage.push(partialRow);
                     }
                 } else {
-                    // Fully unpaid
-                    const row = renderPaymentRow(d, existing, false);
+                    const row = renderPaymentRow(d, existing, false, owedAmt);
                     if (d.type === 'rent') unpaidRent.push(row);
                     else unpaidMortgage.push(row);
                 }
@@ -3346,7 +3369,7 @@
         }
 
         // Render a partial/remaining balance row in unpaid
-        function renderPartialRow(d, existing, remaining) {
+        function renderPartialRow(d, existing, remaining, owedAmt) {
             const paymentId = existing ? existing.id : '';
             return `
                 <div class="payment-row" data-default-id="${d.id}" data-payment-id="${paymentId}" style="background:#fef3c7;border-radius:6px;padding:10px;margin:4px 0;">
@@ -3356,7 +3379,7 @@
                         <input type="number" step="0.01" value="${remaining.toFixed(2)}" id="partial-amt-${d.id}"
                             style="width:100px;">
                     </div>
-                    <div class="pr-due">of $${parseFloat(d.default_amount).toFixed(2)}</div>
+                    <div class="pr-due">of $${owedAmt.toFixed(2)}</div>
                     <div>
                         <input type="date" id="partial-date-${d.id}"
                             onchange="addAdditionalPayment(${d.id}, this.value, document.getElementById('partial-amt-${d.id}').value)">
@@ -3368,8 +3391,8 @@
             `;
         }
 
-        function renderPaymentRow(d, existing, isPaid) {
-            const amount = existing ? existing.amount_paid : d.default_amount;
+        function renderPaymentRow(d, existing, isPaid, owedAmt) {
+            const amount = existing ? existing.amount_paid : owedAmt;
             const datePaid = existing ? existing.date_paid || '' : '';
             const paymentId = existing ? existing.id : '';
             const paidClass = isPaid ? 'paid' : '';
@@ -3402,6 +3425,7 @@
         async function markPayment(defaultId, existingPaymentId, datePaid, amount) {
             const monthKey = getMonthKey(currentPaymentMonth);
             const amountPaid = parseFloat(amount);
+            const defaultObj = paymentDefaults.find(d => d.id === defaultId);
 
             try {
                 if (existingPaymentId) {
@@ -3420,6 +3444,7 @@
                             payment_default_id: defaultId,
                             period: monthKey,
                             amount_paid: amountPaid,
+                            amount_owed: defaultObj ? defaultObj.default_amount : amountPaid,
                             date_paid: datePaid || null
                         }]);
                     if (error) throw error;
@@ -3436,6 +3461,7 @@
         async function updatePaymentAmount(defaultId, existingPaymentId, newAmount) {
             const monthKey = getMonthKey(currentPaymentMonth);
             const amount = parseFloat(newAmount);
+            const defaultObj = paymentDefaults.find(d => d.id === defaultId);
 
             try {
                 if (existingPaymentId) {
@@ -3445,13 +3471,13 @@
                         .eq('id', existingPaymentId);
                     if (error) throw error;
                 } else {
-                    // Create record without date_paid (still unpaid but amount overridden)
                     const { error } = await supabaseClient
                         .from('payments')
                         .insert([{
                             payment_default_id: defaultId,
                             period: monthKey,
                             amount_paid: amount,
+                            amount_owed: defaultObj ? defaultObj.default_amount : amount,
                             date_paid: null
                         }]);
                     if (error) throw error;
@@ -3468,13 +3494,12 @@
             if (!datePaid) return;
             const monthKey = getMonthKey(currentPaymentMonth);
             const addAmt = parseFloat(additionalAmount);
+            const defaultObj = paymentDefaults.find(d => d.id === defaultId);
 
             try {
-                // Find the existing payment record
                 const existing = monthlyPayments.find(p => p.payment_default_id === defaultId);
                 
                 if (existing) {
-                    // Add to existing amount
                     const newTotal = parseFloat(existing.amount_paid || 0) + addAmt;
                     const { error } = await supabaseClient
                         .from('payments')
@@ -3482,13 +3507,13 @@
                         .eq('id', existing.id);
                     if (error) throw error;
                 } else {
-                    // Create new record with this amount
                     const { error } = await supabaseClient
                         .from('payments')
                         .insert([{
                             payment_default_id: defaultId,
                             period: monthKey,
                             amount_paid: addAmt,
+                            amount_owed: defaultObj ? defaultObj.default_amount : addAmt,
                             date_paid: datePaid
                         }]);
                     if (error) throw error;
