@@ -426,7 +426,9 @@
             cursor: pointer;
             font-weight: 500;
             font-size: 14px;
-            margin-bottom: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .toggle-form-btn:hover {
@@ -443,14 +445,17 @@
         }
 
         .export-btn {
-            padding: 8px 16px;
+            padding: 10px 16px;
             background: var(--success);
             color: white;
             border: none;
             border-radius: 6px;
             cursor: pointer;
             font-weight: 500;
-            font-size: 13px;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .export-btn:hover {
@@ -462,6 +467,7 @@
             gap: 8px;
             justify-content: flex-end;
             margin-bottom: 12px;
+            align-items: stretch;
         }
 
         .delete-btn {
@@ -644,6 +650,188 @@
             animation: spin 0.6s linear infinite;
             margin-left: 8px;
             vertical-align: middle;
+        }
+
+        /* ========== MOBILE RESPONSIVE ========== */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 12px;
+            }
+
+            /* Header: stack logo above nav */
+            .header {
+                padding: 12px 0;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .logo {
+                font-size: 20px;
+            }
+
+            /* Nav: horizontal scroll */
+            .nav {
+                width: 100%;
+                overflow-x: auto;
+                gap: 6px;
+                padding-bottom: 2px;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .nav-btn {
+                padding: 8px 14px;
+                font-size: 13px;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+
+            /* Main content */
+            .main {
+                padding: 16px 0;
+            }
+
+            /* Cards */
+            .card {
+                padding: 16px;
+                border-radius: 8px;
+            }
+
+            .card-header {
+                font-size: 17px;
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 12px;
+            }
+
+            /* Stats grid: 2 columns on mobile */
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                margin-bottom: 16px;
+            }
+
+            .stat-card {
+                padding: 14px;
+            }
+
+            .stat-value {
+                font-size: 22px;
+            }
+
+            .stat-label {
+                font-size: 12px;
+            }
+
+            /* Form grid: single column */
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+
+            /* Expense action buttons */
+            .expense-actions {
+                flex-direction: row;
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .toggle-form-btn,
+            .export-btn {
+                font-size: 13px;
+                padding: 8px 14px;
+            }
+
+            /* Expense filters: stack */
+            .expense-filters {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .expense-filters .form-group {
+                min-width: 100%;
+            }
+
+            /* Expense summary cards */
+            .expense-summary {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .expense-summary-card .value {
+                font-size: 20px;
+            }
+
+            /* Tables: horizontal scroll */
+            .table-container {
+                margin: 0 -16px;
+                border-radius: 0;
+            }
+
+            th, td {
+                padding: 10px 8px;
+                font-size: 13px;
+            }
+
+            .action-btn {
+                padding: 5px 8px;
+                font-size: 12px;
+            }
+
+            /* Search bar full width */
+            .search-bar input {
+                max-width: 100%;
+            }
+
+            /* Receipt upload */
+            .receipt-upload-area {
+                padding: 14px;
+            }
+
+            .receipt-thumb {
+                width: 64px;
+                height: 64px;
+            }
+
+            /* Lightbox */
+            .receipt-lightbox img {
+                max-width: 95%;
+                max-height: 70vh;
+            }
+
+            .lb-nav {
+                gap: 10px;
+            }
+
+            .lb-nav button {
+                padding: 8px 14px;
+                font-size: 13px;
+            }
+        }
+
+        /* Extra small phones */
+        @media (max-width: 380px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .expense-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-btn {
+                padding: 7px 10px;
+                font-size: 12px;
+            }
+
+            .expense-actions {
+                flex-wrap: wrap;
+            }
         }
     </style>
 </head>
