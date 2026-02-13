@@ -364,6 +364,114 @@
         .action-btn:hover {
             opacity: 0.8;
         }
+
+        /* Expense Styles */
+        .expense-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+            align-items: flex-end;
+        }
+
+        .expense-filters .form-group {
+            min-width: 160px;
+            flex: 1;
+        }
+
+        .expense-filters label {
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .expense-filters select,
+        .expense-filters input {
+            padding: 8px 10px;
+            font-size: 13px;
+        }
+
+        .expense-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .expense-summary-card {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .expense-summary-card .label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .expense-summary-card .value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .toggle-form-btn {
+            padding: 10px 24px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .toggle-form-btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .expense-form-container {
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .expense-form-container.visible {
+            display: block;
+        }
+
+        .export-btn {
+            padding: 8px 16px;
+            background: var(--success);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        .export-btn:hover {
+            opacity: 0.9;
+        }
+
+        .expense-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-bottom: 12px;
+        }
+
+        .delete-btn {
+            background: var(--danger);
+            color: white;
+        }
+
+        .edit-btn {
+            background: var(--primary);
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -678,6 +786,141 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Expenses View -->
+            <div id="expenses" class="view">
+                <div class="card">
+                    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                        <span>Expense Tracking</span>
+                        <div class="expense-actions">
+                            <button class="export-btn" onclick="exportExpensesCSV()">📥 Export CSV</button>
+                            <button class="toggle-form-btn" onclick="toggleExpenseForm()" id="add-expense-toggle">+ Add Expense</button>
+                        </div>
+                    </div>
+                    <div id="expense-alert-container"></div>
+
+                    <!-- Add Expense Form (hidden by default) -->
+                    <div class="expense-form-container" id="expense-form-container">
+                        <form id="expense-form" onsubmit="saveExpense(event)">
+                            <input type="hidden" id="expense-id" value="">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Date *</label>
+                                    <input type="date" id="expense-date" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Property *</label>
+                                    <select id="expense-property" required>
+                                        <option value="">Select Property</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Category *</label>
+                                    <select id="expense-category" required>
+                                        <option value="">Select Category</option>
+                                        <option value="Repairs">Repairs</option>
+                                        <option value="Maintenance">Maintenance</option>
+                                        <option value="Water/Sewer">Water/Sewer</option>
+                                        <option value="Trash">Trash</option>
+                                        <option value="Snow & Landscaping">Snow & Landscaping</option>
+                                        <option value="Taxes">Taxes</option>
+                                        <option value="Insurance">Insurance</option>
+                                        <option value="Utilities">Utilities</option>
+                                        <option value="Post Rental">Post Rental</option>
+                                        <option value="Upgrades">Upgrades</option>
+                                        <option value="Mortgage Payment">Mortgage Payment</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Amount *</label>
+                                    <input type="number" id="expense-amount" step="0.01" min="0" required placeholder="0.00">
+                                </div>
+                                <div class="form-group">
+                                    <label>Vendor / Payee</label>
+                                    <input type="text" id="expense-vendor" placeholder="e.g. Home Depot, Plumber">
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>Description / Notes</label>
+                                    <textarea id="expense-notes" rows="2" placeholder="Brief description of expense"></textarea>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:10px;">
+                                <button type="submit" class="btn-primary" id="expense-save-btn">Save Expense</button>
+                                <button type="button" class="btn-secondary" onclick="cancelExpenseEdit()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="expense-filters">
+                        <div class="form-group">
+                            <label>Filter Property</label>
+                            <select id="filter-property" onchange="loadExpenses()">
+                                <option value="">All Properties</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Filter Category</label>
+                            <select id="filter-category" onchange="loadExpenses()">
+                                <option value="">All Categories</option>
+                                <option value="Repairs">Repairs</option>
+                                <option value="Maintenance">Maintenance</option>
+                                <option value="Water/Sewer">Water/Sewer</option>
+                                <option value="Trash">Trash</option>
+                                <option value="Snow & Landscaping">Snow & Landscaping</option>
+                                <option value="Taxes">Taxes</option>
+                                <option value="Insurance">Insurance</option>
+                                <option value="Utilities">Utilities</option>
+                                <option value="Post Rental">Post Rental</option>
+                                <option value="Upgrades">Upgrades</option>
+                                <option value="Mortgage Payment">Mortgage Payment</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>From</label>
+                            <input type="date" id="filter-date-from" onchange="loadExpenses()">
+                        </div>
+                        <div class="form-group">
+                            <label>To</label>
+                            <input type="date" id="filter-date-to" onchange="loadExpenses()">
+                        </div>
+                    </div>
+
+                    <!-- Summary -->
+                    <div class="expense-summary">
+                        <div class="expense-summary-card">
+                            <div class="label">Total Expenses</div>
+                            <div class="value" id="expense-total">$0.00</div>
+                        </div>
+                        <div class="expense-summary-card">
+                            <div class="label"># of Expenses</div>
+                            <div class="value" id="expense-count">0</div>
+                        </div>
+                    </div>
+
+                    <!-- Expenses Table -->
+                    <div class="table-container">
+                        <table id="expenses-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Property</th>
+                                    <th>Category</th>
+                                    <th>Amount</th>
+                                    <th>Vendor</th>
+                                    <th>Notes</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expenses-tbody">
+                                <tr><td colspan="7" class="loading">Click "Expenses" tab to load...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -720,6 +963,7 @@
 
             if (viewName === 'dashboard') loadDashboard();
             if (viewName === 'leases') loadAllLeases();
+            if (viewName === 'expenses') { loadExpenseProperties(); loadExpenses(); }
         }
 
         // Reset form and show new lease view (not a renewal)
@@ -1485,6 +1729,264 @@
             const container = document.getElementById('alert-container');
             container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
             setTimeout(() => container.innerHTML = '', 5000);
+        }
+
+        // ============ EXPENSES ============
+
+        let allExpenses = [];
+
+        // Load ALL properties (buildings + units) into expense dropdowns
+        async function loadExpenseProperties() {
+            try {
+                const { data: properties, error } = await supabaseClient
+                    .from('properties')
+                    .select('*')
+                    .eq('status', 'active')
+                    .order('property_name', { ascending: true });
+
+                if (error) throw error;
+
+                // Populate both the form dropdown and filter dropdown
+                ['expense-property', 'filter-property'].forEach(dropdownId => {
+                    const dropdown = document.getElementById(dropdownId);
+                    const firstOption = dropdown.options[0].textContent; // preserve "Select" or "All"
+                    dropdown.innerHTML = `<option value="">${firstOption}</option>`;
+                    
+                    // Group: buildings first, then units
+                    const buildings = properties.filter(p => p.is_building_level);
+                    const units = properties.filter(p => !p.is_building_level);
+
+                    if (buildings.length) {
+                        const group1 = document.createElement('optgroup');
+                        group1.label = '🏢 Buildings';
+                        buildings.forEach(p => {
+                            const opt = document.createElement('option');
+                            opt.value = p.property_name;
+                            opt.textContent = p.property_name;
+                            group1.appendChild(opt);
+                        });
+                        dropdown.appendChild(group1);
+                    }
+
+                    if (units.length) {
+                        const group2 = document.createElement('optgroup');
+                        group2.label = '🏠 Units';
+                        units.forEach(p => {
+                            const opt = document.createElement('option');
+                            opt.value = p.property_name;
+                            opt.textContent = p.property_name;
+                            group2.appendChild(opt);
+                        });
+                        dropdown.appendChild(group2);
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading expense properties:', error);
+            }
+        }
+
+        // Toggle add expense form
+        function toggleExpenseForm() {
+            const container = document.getElementById('expense-form-container');
+            container.classList.toggle('visible');
+            if (container.classList.contains('visible')) {
+                // Default date to today
+                if (!document.getElementById('expense-date').value) {
+                    document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
+                }
+            }
+        }
+
+        // Cancel edit / close form
+        function cancelExpenseEdit() {
+            document.getElementById('expense-form').reset();
+            document.getElementById('expense-id').value = '';
+            document.getElementById('expense-save-btn').textContent = 'Save Expense';
+            document.getElementById('expense-form-container').classList.remove('visible');
+        }
+
+        // Save expense (add or update)
+        async function saveExpense(event) {
+            event.preventDefault();
+            
+            const expenseId = document.getElementById('expense-id').value;
+            const expenseData = {
+                expense_date: document.getElementById('expense-date').value,
+                property_name: document.getElementById('expense-property').value,
+                category: document.getElementById('expense-category').value,
+                amount: parseFloat(document.getElementById('expense-amount').value),
+                vendor: document.getElementById('expense-vendor').value || null,
+                notes: document.getElementById('expense-notes').value || null
+            };
+
+            try {
+                if (expenseId) {
+                    // Update existing
+                    const { error } = await supabaseClient
+                        .from('expenses')
+                        .update(expenseData)
+                        .eq('id', expenseId);
+                    if (error) throw error;
+                    showExpenseAlert('Expense updated!', 'success');
+                } else {
+                    // Insert new
+                    const { error } = await supabaseClient
+                        .from('expenses')
+                        .insert([expenseData]);
+                    if (error) throw error;
+                    showExpenseAlert('Expense saved!', 'success');
+                }
+
+                cancelExpenseEdit();
+                loadExpenses();
+            } catch (error) {
+                console.error('Error saving expense:', error);
+                showExpenseAlert('Error saving expense: ' + error.message, 'error');
+            }
+        }
+
+        // Load and display expenses with filters
+        async function loadExpenses() {
+            try {
+                let query = supabaseClient
+                    .from('expenses')
+                    .select('*')
+                    .order('expense_date', { ascending: false });
+
+                // Apply filters
+                const filterProperty = document.getElementById('filter-property').value;
+                const filterCategory = document.getElementById('filter-category').value;
+                const filterFrom = document.getElementById('filter-date-from').value;
+                const filterTo = document.getElementById('filter-date-to').value;
+
+                if (filterProperty) query = query.eq('property_name', filterProperty);
+                if (filterCategory) query = query.eq('category', filterCategory);
+                if (filterFrom) query = query.gte('expense_date', filterFrom);
+                if (filterTo) query = query.lte('expense_date', filterTo);
+
+                const { data: expenses, error } = await query;
+                if (error) throw error;
+
+                allExpenses = expenses || [];
+                renderExpenses(allExpenses);
+            } catch (error) {
+                console.error('Error loading expenses:', error);
+                document.getElementById('expenses-tbody').innerHTML = 
+                    '<tr><td colspan="7" class="loading">Error loading expenses</td></tr>';
+            }
+        }
+
+        // Render expenses table
+        function renderExpenses(expenses) {
+            const tbody = document.getElementById('expenses-tbody');
+            
+            if (!expenses.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="loading">No expenses found</td></tr>';
+                document.getElementById('expense-total').textContent = '$0.00';
+                document.getElementById('expense-count').textContent = '0';
+                return;
+            }
+
+            // Update summary
+            const total = expenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+            document.getElementById('expense-total').textContent = '$' + total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('expense-count').textContent = expenses.length;
+
+            // Build table rows
+            tbody.innerHTML = expenses.map(e => `
+                <tr>
+                    <td>${formatDate(e.expense_date)}</td>
+                    <td>${e.property_name || ''}</td>
+                    <td><span class="status-badge" style="background:#e0e7ff;color:#3730a3;">${e.category}</span></td>
+                    <td><strong>$${parseFloat(e.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></td>
+                    <td>${e.vendor || '-'}</td>
+                    <td>${e.notes || '-'}</td>
+                    <td>
+                        <button class="action-btn edit-btn" onclick="editExpense(${e.id})">Edit</button>
+                        <button class="action-btn delete-btn" onclick="deleteExpense(${e.id})">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Format date for display
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr + 'T00:00:00');
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        // Edit an expense
+        function editExpense(id) {
+            const expense = allExpenses.find(e => e.id === id);
+            if (!expense) return;
+
+            document.getElementById('expense-id').value = expense.id;
+            document.getElementById('expense-date').value = expense.expense_date;
+            document.getElementById('expense-property').value = expense.property_name;
+            document.getElementById('expense-category').value = expense.category;
+            document.getElementById('expense-amount').value = expense.amount;
+            document.getElementById('expense-vendor').value = expense.vendor || '';
+            document.getElementById('expense-notes').value = expense.notes || '';
+            document.getElementById('expense-save-btn').textContent = 'Update Expense';
+            
+            // Show form
+            document.getElementById('expense-form-container').classList.add('visible');
+            window.scrollTo(0, 0);
+        }
+
+        // Delete an expense
+        async function deleteExpense(id) {
+            if (!confirm('Delete this expense?')) return;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('expenses')
+                    .delete()
+                    .eq('id', id);
+                if (error) throw error;
+                showExpenseAlert('Expense deleted', 'success');
+                loadExpenses();
+            } catch (error) {
+                console.error('Error deleting expense:', error);
+                showExpenseAlert('Error deleting: ' + error.message, 'error');
+            }
+        }
+
+        // Export filtered expenses to CSV
+        function exportExpensesCSV() {
+            if (!allExpenses.length) {
+                showExpenseAlert('No expenses to export', 'error');
+                return;
+            }
+
+            const headers = ['Date', 'Property', 'Category', 'Amount', 'Vendor', 'Notes'];
+            const rows = allExpenses.map(e => [
+                e.expense_date,
+                `"${(e.property_name || '').replace(/"/g, '""')}"`,
+                e.category,
+                e.amount,
+                `"${(e.vendor || '').replace(/"/g, '""')}"`,
+                `"${(e.notes || '').replace(/"/g, '""')}"`
+            ]);
+
+            let csv = headers.join(',') + '\n';
+            rows.forEach(row => csv += row.join(',') + '\n');
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `expenses_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Show expense alert
+        function showExpenseAlert(message, type) {
+            const container = document.getElementById('expense-alert-container');
+            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => container.innerHTML = '', 4000);
         }
 
         // Initialize on page load
