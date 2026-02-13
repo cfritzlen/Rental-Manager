@@ -472,6 +472,159 @@
             background: var(--primary);
             color: white;
         }
+
+        /* Receipt Styles */
+        .receipt-upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .receipt-upload-area:hover {
+            border-color: var(--primary);
+            background: rgba(30, 64, 175, 0.03);
+        }
+
+        .receipt-upload-area input[type="file"] {
+            display: none;
+        }
+
+        .receipt-upload-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .receipt-upload-label .icon {
+            font-size: 28px;
+        }
+
+        .receipt-thumbnails {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .receipt-thumb {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .receipt-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            cursor: pointer;
+        }
+
+        .receipt-thumb .remove-receipt {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        .receipt-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            background: #dbeafe;
+            color: #1e40af;
+            border-radius: 10px;
+            font-size: 12px;
+            cursor: pointer;
+            border: none;
+        }
+
+        .receipt-badge:hover {
+            background: #bfdbfe;
+        }
+
+        /* Lightbox for viewing receipts */
+        .receipt-lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .receipt-lightbox.active {
+            display: flex;
+        }
+
+        .receipt-lightbox img {
+            max-width: 90%;
+            max-height: 80vh;
+            border-radius: 8px;
+        }
+
+        .receipt-lightbox .lb-nav {
+            display: flex;
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .receipt-lightbox button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .lb-close {
+            background: white;
+            color: #333;
+        }
+
+        .lb-prev, .lb-next {
+            background: var(--primary);
+            color: white;
+        }
+
+        .uploading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ccc;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body>
@@ -844,6 +997,17 @@
                                     <label>Description / Notes</label>
                                     <textarea id="expense-notes" rows="2" placeholder="Brief description of expense"></textarea>
                                 </div>
+                                <div class="form-group full-width">
+                                    <label>Receipts (up to 3 photos)</label>
+                                    <div class="receipt-upload-area" onclick="document.getElementById('receipt-input').click()">
+                                        <label class="receipt-upload-label">
+                                            <span class="icon">📷</span>
+                                            <span>Tap to take photo or choose files</span>
+                                            <input type="file" id="receipt-input" accept="image/*" capture="environment" multiple onchange="handleReceiptFiles(this.files)">
+                                        </label>
+                                    </div>
+                                    <div class="receipt-thumbnails" id="receipt-thumbnails"></div>
+                                </div>
                             </div>
                             <div style="display:flex;gap:10px;">
                                 <button type="submit" class="btn-primary" id="expense-save-btn">Save Expense</button>
@@ -911,11 +1075,12 @@
                                     <th>Amount</th>
                                     <th>Vendor</th>
                                     <th>Notes</th>
+                                    <th>Receipts</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="expenses-tbody">
-                                <tr><td colspan="7" class="loading">Click "Expenses" tab to load...</td></tr>
+                                <tr><td colspan="8" class="loading">Click "Expenses" tab to load...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -923,6 +1088,16 @@
             </div>
         </div>
     </main>
+
+    <!-- Receipt Lightbox -->
+    <div class="receipt-lightbox" id="receipt-lightbox" onclick="closeLightbox(event)">
+        <img id="lb-image" src="" alt="Receipt">
+        <div class="lb-nav">
+            <button class="lb-prev" onclick="event.stopPropagation(); navigateLightbox(-1)">← Prev</button>
+            <button class="lb-close" onclick="closeLightbox()">Close</button>
+            <button class="lb-next" onclick="event.stopPropagation(); navigateLightbox(1)">Next →</button>
+        </div>
+    </div>
 
     <script>
         // Initialize Supabase
@@ -1734,6 +1909,8 @@
         // ============ EXPENSES ============
 
         let allExpenses = [];
+        let pendingReceiptFiles = [];   // Files waiting to be uploaded
+        let existingReceiptUrls = [];   // URLs already saved (for edits)
 
         // Load ALL properties (buildings + units) into expense dropdowns
         async function loadExpenseProperties() {
@@ -1746,13 +1923,11 @@
 
                 if (error) throw error;
 
-                // Populate both the form dropdown and filter dropdown
                 ['expense-property', 'filter-property'].forEach(dropdownId => {
                     const dropdown = document.getElementById(dropdownId);
-                    const firstOption = dropdown.options[0].textContent; // preserve "Select" or "All"
+                    const firstOption = dropdown.options[0].textContent;
                     dropdown.innerHTML = `<option value="">${firstOption}</option>`;
                     
-                    // Group: buildings first, then units
                     const buildings = properties.filter(p => p.is_building_level);
                     const units = properties.filter(p => !p.is_building_level);
 
@@ -1790,7 +1965,6 @@
             const container = document.getElementById('expense-form-container');
             container.classList.toggle('visible');
             if (container.classList.contains('visible')) {
-                // Default date to today
                 if (!document.getElementById('expense-date').value) {
                     document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
                 }
@@ -1803,25 +1977,139 @@
             document.getElementById('expense-id').value = '';
             document.getElementById('expense-save-btn').textContent = 'Save Expense';
             document.getElementById('expense-form-container').classList.remove('visible');
+            pendingReceiptFiles = [];
+            existingReceiptUrls = [];
+            renderReceiptThumbnails();
         }
 
-        // Save expense (add or update)
+        // Handle receipt file selection
+        function handleReceiptFiles(files) {
+            const totalCount = pendingReceiptFiles.length + existingReceiptUrls.length;
+            const remaining = 3 - totalCount;
+            
+            if (remaining <= 0) {
+                showExpenseAlert('Maximum 3 receipts per expense', 'error');
+                return;
+            }
+
+            for (let i = 0; i < Math.min(files.length, remaining); i++) {
+                const file = files[i];
+                if (!file.type.startsWith('image/')) continue;
+                // Cap at 10MB
+                if (file.size > 10 * 1024 * 1024) {
+                    showExpenseAlert('File too large (max 10MB): ' + file.name, 'error');
+                    continue;
+                }
+                pendingReceiptFiles.push(file);
+            }
+
+            // Clear the input so same file can be re-selected
+            document.getElementById('receipt-input').value = '';
+            renderReceiptThumbnails();
+        }
+
+        // Render thumbnail previews in form
+        function renderReceiptThumbnails() {
+            const container = document.getElementById('receipt-thumbnails');
+            container.innerHTML = '';
+
+            // Show existing (already uploaded) receipts
+            existingReceiptUrls.forEach((url, i) => {
+                const thumb = document.createElement('div');
+                thumb.className = 'receipt-thumb';
+                thumb.innerHTML = `
+                    <img src="${url}" onclick="openLightbox(existingReceiptUrls, ${i})" alt="Receipt">
+                    <button class="remove-receipt" onclick="removeExistingReceipt(${i})" title="Remove">×</button>
+                `;
+                container.appendChild(thumb);
+            });
+
+            // Show pending (not yet uploaded) files
+            pendingReceiptFiles.forEach((file, i) => {
+                const thumb = document.createElement('div');
+                thumb.className = 'receipt-thumb';
+                const url = URL.createObjectURL(file);
+                thumb.innerHTML = `
+                    <img src="${url}" alt="Receipt">
+                    <button class="remove-receipt" onclick="removePendingReceipt(${i})" title="Remove">×</button>
+                `;
+                container.appendChild(thumb);
+            });
+        }
+
+        function removePendingReceipt(index) {
+            pendingReceiptFiles.splice(index, 1);
+            renderReceiptThumbnails();
+        }
+
+        function removeExistingReceipt(index) {
+            // Optionally delete from storage too
+            const url = existingReceiptUrls[index];
+            existingReceiptUrls.splice(index, 1);
+            renderReceiptThumbnails();
+            // Try to delete from storage (best effort)
+            try {
+                const path = url.split('/receipts/')[1];
+                if (path) supabaseClient.storage.from('receipts').remove([decodeURIComponent(path)]);
+            } catch(e) { console.warn('Could not delete file from storage', e); }
+        }
+
+        // Upload a single receipt file to Supabase Storage
+        async function uploadReceipt(file) {
+            const timestamp = Date.now();
+            const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const filePath = `${timestamp}_${safeName}`;
+
+            const { data, error } = await supabaseClient.storage
+                .from('receipts')
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: false
+                });
+
+            if (error) throw error;
+
+            // Get public URL
+            const { data: urlData } = supabaseClient.storage
+                .from('receipts')
+                .getPublicUrl(filePath);
+
+            return urlData.publicUrl;
+        }
+
+        // Save expense (add or update) with receipt uploads
         async function saveExpense(event) {
             event.preventDefault();
             
+            const saveBtn = document.getElementById('expense-save-btn');
+            const originalText = saveBtn.textContent;
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = originalText + '<span class="uploading-spinner"></span>';
+
             const expenseId = document.getElementById('expense-id').value;
-            const expenseData = {
-                expense_date: document.getElementById('expense-date').value,
-                property_name: document.getElementById('expense-property').value,
-                category: document.getElementById('expense-category').value,
-                amount: parseFloat(document.getElementById('expense-amount').value),
-                vendor: document.getElementById('expense-vendor').value || null,
-                notes: document.getElementById('expense-notes').value || null
-            };
 
             try {
+                // Upload any pending receipt files
+                const newUrls = [];
+                for (const file of pendingReceiptFiles) {
+                    const url = await uploadReceipt(file);
+                    newUrls.push(url);
+                }
+
+                // Combine existing + new URLs
+                const allReceiptUrls = [...existingReceiptUrls, ...newUrls];
+
+                const expenseData = {
+                    expense_date: document.getElementById('expense-date').value,
+                    property_name: document.getElementById('expense-property').value,
+                    category: document.getElementById('expense-category').value,
+                    amount: parseFloat(document.getElementById('expense-amount').value),
+                    vendor: document.getElementById('expense-vendor').value || null,
+                    notes: document.getElementById('expense-notes').value || null,
+                    receipt_urls: allReceiptUrls.length ? allReceiptUrls : null
+                };
+
                 if (expenseId) {
-                    // Update existing
                     const { error } = await supabaseClient
                         .from('expenses')
                         .update(expenseData)
@@ -1829,7 +2117,6 @@
                     if (error) throw error;
                     showExpenseAlert('Expense updated!', 'success');
                 } else {
-                    // Insert new
                     const { error } = await supabaseClient
                         .from('expenses')
                         .insert([expenseData]);
@@ -1842,6 +2129,9 @@
             } catch (error) {
                 console.error('Error saving expense:', error);
                 showExpenseAlert('Error saving expense: ' + error.message, 'error');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalText;
             }
         }
 
@@ -1853,7 +2143,6 @@
                     .select('*')
                     .order('expense_date', { ascending: false });
 
-                // Apply filters
                 const filterProperty = document.getElementById('filter-property').value;
                 const filterCategory = document.getElementById('filter-category').value;
                 const filterFrom = document.getElementById('filter-date-from').value;
@@ -1872,7 +2161,7 @@
             } catch (error) {
                 console.error('Error loading expenses:', error);
                 document.getElementById('expenses-tbody').innerHTML = 
-                    '<tr><td colspan="7" class="loading">Error loading expenses</td></tr>';
+                    '<tr><td colspan="8" class="loading">Error loading expenses</td></tr>';
             }
         }
 
@@ -1881,19 +2170,23 @@
             const tbody = document.getElementById('expenses-tbody');
             
             if (!expenses.length) {
-                tbody.innerHTML = '<tr><td colspan="7" class="loading">No expenses found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="loading">No expenses found</td></tr>';
                 document.getElementById('expense-total').textContent = '$0.00';
                 document.getElementById('expense-count').textContent = '0';
                 return;
             }
 
-            // Update summary
             const total = expenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
             document.getElementById('expense-total').textContent = '$' + total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             document.getElementById('expense-count').textContent = expenses.length;
 
-            // Build table rows
-            tbody.innerHTML = expenses.map(e => `
+            tbody.innerHTML = expenses.map(e => {
+                const receipts = e.receipt_urls || [];
+                const receiptCell = receipts.length 
+                    ? `<button class="receipt-badge" onclick='openLightbox(${JSON.stringify(receipts)}, 0)'>📎 ${receipts.length} receipt${receipts.length > 1 ? "s" : ""}</button>`
+                    : '<span style="color:#94a3b8;">—</span>';
+
+                return `
                 <tr>
                     <td>${formatDate(e.expense_date)}</td>
                     <td>${e.property_name || ''}</td>
@@ -1901,12 +2194,13 @@
                     <td><strong>$${parseFloat(e.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></td>
                     <td>${e.vendor || '-'}</td>
                     <td>${e.notes || '-'}</td>
+                    <td>${receiptCell}</td>
                     <td>
                         <button class="action-btn edit-btn" onclick="editExpense(${e.id})">Edit</button>
                         <button class="action-btn delete-btn" onclick="deleteExpense(${e.id})">Delete</button>
                     </td>
-                </tr>
-            `).join('');
+                </tr>`;
+            }).join('');
         }
 
         // Format date for display
@@ -1930,27 +2224,67 @@
             document.getElementById('expense-notes').value = expense.notes || '';
             document.getElementById('expense-save-btn').textContent = 'Update Expense';
             
-            // Show form
+            // Load existing receipts
+            pendingReceiptFiles = [];
+            existingReceiptUrls = expense.receipt_urls ? [...expense.receipt_urls] : [];
+            renderReceiptThumbnails();
+
             document.getElementById('expense-form-container').classList.add('visible');
             window.scrollTo(0, 0);
         }
 
-        // Delete an expense
+        // Delete an expense (also cleans up receipt files)
         async function deleteExpense(id) {
             if (!confirm('Delete this expense?')) return;
 
             try {
+                // Find expense to get receipt URLs for cleanup
+                const expense = allExpenses.find(e => e.id === id);
+                
                 const { error } = await supabaseClient
                     .from('expenses')
                     .delete()
                     .eq('id', id);
                 if (error) throw error;
+
+                // Clean up receipt files from storage
+                if (expense && expense.receipt_urls && expense.receipt_urls.length) {
+                    const paths = expense.receipt_urls.map(url => {
+                        const parts = url.split('/receipts/');
+                        return parts[1] ? decodeURIComponent(parts[1]) : null;
+                    }).filter(Boolean);
+                    if (paths.length) {
+                        await supabaseClient.storage.from('receipts').remove(paths);
+                    }
+                }
+
                 showExpenseAlert('Expense deleted', 'success');
                 loadExpenses();
             } catch (error) {
                 console.error('Error deleting expense:', error);
                 showExpenseAlert('Error deleting: ' + error.message, 'error');
             }
+        }
+
+        // ---- Lightbox ----
+        let lightboxUrls = [];
+        let lightboxIndex = 0;
+
+        function openLightbox(urls, index) {
+            lightboxUrls = urls;
+            lightboxIndex = index;
+            document.getElementById('lb-image').src = urls[index];
+            document.getElementById('receipt-lightbox').classList.add('active');
+        }
+
+        function closeLightbox(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('receipt-lightbox').classList.remove('active');
+        }
+
+        function navigateLightbox(direction) {
+            lightboxIndex = (lightboxIndex + direction + lightboxUrls.length) % lightboxUrls.length;
+            document.getElementById('lb-image').src = lightboxUrls[lightboxIndex];
         }
 
         // Export filtered expenses to CSV
@@ -1960,14 +2294,15 @@
                 return;
             }
 
-            const headers = ['Date', 'Property', 'Category', 'Amount', 'Vendor', 'Notes'];
+            const headers = ['Date', 'Property', 'Category', 'Amount', 'Vendor', 'Notes', 'Receipts'];
             const rows = allExpenses.map(e => [
                 e.expense_date,
                 `"${(e.property_name || '').replace(/"/g, '""')}"`,
                 e.category,
                 e.amount,
                 `"${(e.vendor || '').replace(/"/g, '""')}"`,
-                `"${(e.notes || '').replace(/"/g, '""')}"`
+                `"${(e.notes || '').replace(/"/g, '""')}"`,
+                `"${(e.receipt_urls || []).join(' | ')}"`
             ]);
 
             let csv = headers.join(',') + '\n';
