@@ -743,6 +743,57 @@
             text-align: center;
         }
 
+        /* Rate Schedule Styles */
+        .rate-history-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            display: none;
+        }
+        .rate-history-section.visible { display: block; }
+        .rate-history-section h4 {
+            font-size: 15px;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+        .rate-schedule-form {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            margin-bottom: 12px;
+        }
+        .rate-schedule-form .form-group { margin-bottom: 0; flex: 1; min-width: 120px; }
+        .rate-schedule-form .form-group label { font-size: 12px; }
+        .rate-schedule-form .form-group input { font-size: 13px; padding: 6px 8px; }
+        .rate-schedule-list { font-size: 13px; }
+        .rate-schedule-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .rate-schedule-row:last-child { border-bottom: none; }
+        .rate-schedule-row .rs-date { font-weight: 600; min-width: 100px; }
+        .rate-schedule-row .rs-amount { color: var(--primary); font-weight: 600; }
+        .rate-schedule-row .rs-note { color: var(--text-secondary); font-style: italic; flex: 1; margin: 0 12px; }
+        .rate-schedule-row .rs-delete { 
+            background: none; border: none; color: var(--danger); cursor: pointer; font-size: 16px; padding: 2px 6px;
+        }
+        .rate-btn {
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 3px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            color: var(--primary);
+        }
+        .rate-btn:hover { background: var(--bg-tertiary); }
+
         .payment-section-header {
             font-size: 15px;
             font-weight: 600;
@@ -1667,6 +1718,33 @@
                                 </tbody>
                             </table>
                         </div>
+
+                        <!-- Rate History Section -->
+                        <div class="rate-history-section" id="rate-history-section">
+                            <h4 id="rate-history-title">📅 Rate History</h4>
+                            <input type="hidden" id="rs-default-id" value="">
+                            <div class="rate-schedule-form">
+                                <div class="form-group">
+                                    <label>Effective Date *</label>
+                                    <input type="date" id="rs-date" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Amount *</label>
+                                    <input type="number" id="rs-amount" step="0.01" min="0" required placeholder="0.00">
+                                </div>
+                                <div class="form-group">
+                                    <label>Note <small>(optional)</small></label>
+                                    <input type="text" id="rs-note" placeholder="e.g. 2026 annual increase">
+                                </div>
+                                <div style="display:flex;gap:6px;align-items:flex-end;">
+                                    <button class="btn-primary" style="padding:6px 14px;font-size:13px;" onclick="saveRateSchedule()">Add Rate</button>
+                                    <button class="btn-secondary" style="padding:6px 14px;font-size:13px;" onclick="closeRateHistory()">Close</button>
+                                </div>
+                            </div>
+                            <div class="rate-schedule-list" id="rate-schedule-list">
+                                <div style="color:var(--text-secondary);padding:8px;">No rate history yet — the current default amount will be used.</div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Month Navigator -->
@@ -1762,7 +1840,7 @@
             if (viewName === 'dashboard') loadDashboard();
             if (viewName === 'leases') loadAllLeases();
             if (viewName === 'expenses') { loadExpenseProperties(); loadExpenses(); }
-            if (viewName === 'payments') { loadPaymentProperties(); loadPaymentDefaults(); loadMonthlyPayments(); }
+            if (viewName === 'payments') { loadPaymentProperties(); loadRateSchedules().then(() => { loadPaymentDefaults(); loadMonthlyPayments(); }); }
         }
 
         // Reset form and show new lease view (not a renewal)
@@ -3171,6 +3249,7 @@
 
         let paymentDefaults = [];
         let monthlyPayments = [];
+        let rateSchedules = [];
         let currentPaymentMonth = new Date();
         currentPaymentMonth.setDate(1);
 
@@ -3314,7 +3393,11 @@
                 return;
             }
 
-            tbody.innerHTML = paymentDefaults.map(d => `
+            tbody.innerHTML = paymentDefaults.map(d => {
+                const rates = rateSchedules.filter(r => r.payment_default_id === d.id);
+                const rateCount = rates.length;
+                const rateBadge = rateCount > 0 ? `<small style="color:var(--success);">(${rateCount})</small>` : '';
+                return `
                 <tr>
                     <td><span class="status-badge" style="background:${d.type === 'rent' ? '#d1fae5;color:#065f46' : '#dbeafe;color:#1e40af'}">${d.type === 'rent' ? '🏠 Rent' : '🏦 Mortgage'}</span></td>
                     <td><strong>${d.label}</strong></td>
@@ -3322,11 +3405,12 @@
                     <td>$${parseFloat(d.default_amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
                     <td>${d.due_day}${ordinalSuffix(d.due_day)}</td>
                     <td>
+                        <button class="rate-btn" onclick="showRateHistory(${d.id})">📅 Rates ${rateBadge}</button>
                         <button class="action-btn edit-btn" onclick="editPaymentDefault(${d.id})">Edit</button>
                         <button class="action-btn delete-btn" onclick="deletePaymentDefault(${d.id})">Delete</button>
                     </td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
 
         function ordinalSuffix(n) {
@@ -3397,13 +3481,16 @@
                 );
 
                 if (missing.length) {
-                    const newRecords = missing.map(d => ({
-                        payment_default_id: d.id,
-                        period: monthKey,
-                        amount_paid: d.default_amount,
-                        amount_owed: d.default_amount,
-                        date_paid: null
-                    }));
+                    const newRecords = missing.map(d => {
+                        const scheduledAmount = getAmountForMonth(d.id, monthKey);
+                        return {
+                            payment_default_id: d.id,
+                            period: monthKey,
+                            amount_paid: scheduledAmount,
+                            amount_owed: scheduledAmount,
+                            date_paid: null
+                        };
+                    });
 
                     const { data: inserted, error: iErr } = await supabaseClient
                         .from('payments')
@@ -3566,13 +3653,14 @@
                     if (error) throw error;
                 } else {
                     // Create new record
+                    const scheduledAmount = getAmountForMonth(defaultId, monthKey);
                     const { error } = await supabaseClient
                         .from('payments')
                         .insert([{
                             payment_default_id: defaultId,
                             period: monthKey,
                             amount_paid: amountPaid,
-                            amount_owed: defaultObj ? defaultObj.default_amount : amountPaid,
+                            amount_owed: scheduledAmount,
                             date_paid: datePaid || null
                         }]);
                     if (error) throw error;
@@ -3661,11 +3749,158 @@
             setTimeout(() => container.innerHTML = '', 4000);
         }
 
+        // ===== RATE SCHEDULE FUNCTIONS =====
+
+        // Get the correct amount for a payment default in a given month
+        function getAmountForMonth(defaultId, monthKey) {
+            // monthKey is like "2026-02"
+            const rates = rateSchedules
+                .filter(r => r.payment_default_id === defaultId)
+                .sort((a, b) => b.effective_date.localeCompare(a.effective_date));
+
+            // Find the most recent rate that's on or before this month
+            const monthStart = monthKey + '-01';
+            for (const rate of rates) {
+                if (rate.effective_date <= monthStart) {
+                    return parseFloat(rate.amount);
+                }
+            }
+
+            // No rate schedule found — fall back to the default_amount
+            const def = paymentDefaults.find(d => d.id === defaultId);
+            return def ? parseFloat(def.default_amount) : 0;
+        }
+
+        // Load all rate schedules
+        async function loadRateSchedules() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('rate_schedules')
+                    .select('*')
+                    .order('effective_date', { ascending: false });
+
+                if (error) {
+                    // Table might not exist yet — that's OK
+                    if (error.code === '42P01') {
+                        rateSchedules = [];
+                        return;
+                    }
+                    throw error;
+                }
+                rateSchedules = data || [];
+            } catch (error) {
+                console.error('Error loading rate schedules:', error);
+                rateSchedules = [];
+            }
+        }
+
+        // Show rate history for a specific payment default
+        function showRateHistory(defaultId) {
+            const def = paymentDefaults.find(d => d.id === defaultId);
+            if (!def) return;
+
+            document.getElementById('rs-default-id').value = defaultId;
+            document.getElementById('rate-history-title').textContent = `📅 Rate History — ${def.label} (${def.property_name})`;
+            document.getElementById('rs-amount').value = '';
+            document.getElementById('rs-date').value = '';
+            document.getElementById('rs-note').value = '';
+
+            renderRateScheduleList(defaultId);
+            document.getElementById('rate-history-section').classList.add('visible');
+            document.getElementById('rate-history-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function closeRateHistory() {
+            document.getElementById('rate-history-section').classList.remove('visible');
+        }
+
+        function renderRateScheduleList(defaultId) {
+            const list = document.getElementById('rate-schedule-list');
+            const rates = rateSchedules
+                .filter(r => r.payment_default_id === defaultId)
+                .sort((a, b) => b.effective_date.localeCompare(a.effective_date));
+
+            if (!rates.length) {
+                list.innerHTML = '<div style="color:var(--text-secondary);padding:8px;">No rate history yet — the current default amount will be used for all months.</div>';
+                return;
+            }
+
+            list.innerHTML = rates.map(r => `
+                <div class="rate-schedule-row">
+                    <span class="rs-date">${new Date(r.effective_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric', day: 'numeric' })}</span>
+                    <span class="rs-amount">$${parseFloat(r.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                    <span class="rs-note">${r.note || ''}</span>
+                    <button class="rs-delete" onclick="deleteRateSchedule(${r.id}, ${defaultId})" title="Delete">✕</button>
+                </div>
+            `).join('');
+        }
+
+        async function saveRateSchedule() {
+            const defaultId = parseInt(document.getElementById('rs-default-id').value);
+            const effectiveDate = document.getElementById('rs-date').value;
+            const amount = parseFloat(document.getElementById('rs-amount').value);
+            const note = document.getElementById('rs-note').value.trim();
+
+            if (!effectiveDate || isNaN(amount)) {
+                showPaymentAlert('Please enter a date and amount', 'error');
+                return;
+            }
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('rate_schedules')
+                    .insert([{
+                        payment_default_id: defaultId,
+                        effective_date: effectiveDate,
+                        amount: amount,
+                        note: note || null
+                    }])
+                    .select();
+
+                if (error) throw error;
+
+                if (data) rateSchedules.push(...data);
+
+                document.getElementById('rs-date').value = '';
+                document.getElementById('rs-amount').value = '';
+                document.getElementById('rs-note').value = '';
+
+                renderRateScheduleList(defaultId);
+                showPaymentAlert('Rate added!', 'success');
+
+                // Refresh payments to use new rate
+                loadMonthlyPayments();
+            } catch (error) {
+                console.error('Error saving rate:', error);
+                showPaymentAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteRateSchedule(rateId, defaultId) {
+            if (!confirm('Delete this rate entry?')) return;
+            try {
+                const { error } = await supabaseClient
+                    .from('rate_schedules')
+                    .delete()
+                    .eq('id', rateId);
+
+                if (error) throw error;
+
+                rateSchedules = rateSchedules.filter(r => r.id !== rateId);
+                renderRateScheduleList(defaultId);
+                showPaymentAlert('Rate removed', 'success');
+                loadMonthlyPayments();
+            } catch (error) {
+                showPaymentAlert('Error: ' + error.message, 'error');
+            }
+        }
+
         // Initialize on page load
         window.addEventListener('DOMContentLoaded', () => {
             initSupabase();
             loadDashboard();
             loadProperties();  // Load property dropdown
+            loadRateSchedules();  // Load rate schedules for payments
         });
     </script>
 </body>
