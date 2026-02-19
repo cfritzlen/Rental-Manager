@@ -271,6 +271,66 @@
             color: var(--text-secondary);
         }
 
+        /* Sortable column headers */
+        th.sortable {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        th.sortable:hover {
+            color: var(--primary);
+        }
+
+        th.sortable .sort-arrow {
+            display: inline-block;
+            margin-left: 4px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            opacity: 0.3;
+        }
+
+        th.sortable.sort-asc .sort-arrow,
+        th.sortable.sort-desc .sort-arrow {
+            opacity: 1;
+            color: var(--primary);
+        }
+
+        /* Column filter inputs */
+        .col-filter {
+            display: block;
+            width: 100%;
+            margin-top: 6px;
+            padding: 4px 6px;
+            font-size: 11px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-weight: 400;
+            box-sizing: border-box;
+        }
+
+        .col-filter:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .col-filter::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+
+        .filter-row td {
+            padding: 4px 8px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .filter-row:hover {
+            background: transparent !important;
+        }
+
         td {
             font-size: 14px;
             color: var(--text-primary);
@@ -1508,16 +1568,28 @@
                         <table id="expenses-table">
                             <thead>
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Property</th>
-                                    <th>Category</th>
-                                    <th>Amount</th>
-                                    <th>Vendor</th>
-                                    <th>Martin Hrs</th>
-                                    <th>Colette Hrs</th>
-                                    <th>Miles</th>
+                                    <th class="sortable" data-col="expense_date" onclick="sortExpenses('expense_date')">Date <span class="sort-arrow">▲▼</span></th>
+                                    <th class="sortable" data-col="property_name" onclick="sortExpenses('property_name')">Property <span class="sort-arrow">▲▼</span></th>
+                                    <th class="sortable" data-col="category" onclick="sortExpenses('category')">Category <span class="sort-arrow">▲▼</span></th>
+                                    <th class="sortable" data-col="amount" onclick="sortExpenses('amount')">Amount <span class="sort-arrow">▲▼</span></th>
+                                    <th class="sortable" data-col="vendor" onclick="sortExpenses('vendor')">Vendor <span class="sort-arrow">▲▼</span></th>
+                                    <th class="sortable" data-col="martin_hours" onclick="sortExpenses('martin_hours')">Martin Hrs <span class="sort-arrow">▲▼</span></th>
+                                    <th class="sortable" data-col="colette_hours" onclick="sortExpenses('colette_hours')">Colette Hrs <span class="sort-arrow">▲▼</span></th>
+                                    <th class="sortable" data-col="miles" onclick="sortExpenses('miles')">Miles <span class="sort-arrow">▲▼</span></th>
                                     <th>Receipts</th>
                                     <th>Actions</th>
+                                </tr>
+                                <tr class="filter-row">
+                                    <td><input type="text" class="col-filter" data-col="expense_date" placeholder="Filter..." oninput="applyExpenseColumnFilters()"></td>
+                                    <td><input type="text" class="col-filter" data-col="property_name" placeholder="Filter..." oninput="applyExpenseColumnFilters()"></td>
+                                    <td><input type="text" class="col-filter" data-col="category" placeholder="Filter..." oninput="applyExpenseColumnFilters()"></td>
+                                    <td><input type="text" class="col-filter" data-col="amount" placeholder="Filter..." oninput="applyExpenseColumnFilters()"></td>
+                                    <td><input type="text" class="col-filter" data-col="vendor" placeholder="Filter..." oninput="applyExpenseColumnFilters()"></td>
+                                    <td><input type="text" class="col-filter" data-col="martin_hours" placeholder="Filter..." oninput="applyExpenseColumnFilters()"></td>
+                                    <td><input type="text" class="col-filter" data-col="colette_hours" placeholder="Filter..." oninput="applyExpenseColumnFilters()"></td>
+                                    <td><input type="text" class="col-filter" data-col="miles" placeholder="Filter..." oninput="applyExpenseColumnFilters()"></td>
+                                    <td></td>
+                                    <td></td>
                                 </tr>
                             </thead>
                             <tbody id="expenses-tbody">
@@ -2464,6 +2536,62 @@
         let pendingReceiptFiles = [];
         let existingReceiptUrls = [];
 
+        // Expense table sort state
+        let expenseSortCol = 'expense_date';
+        let expenseSortAsc = false;
+
+        function sortExpenses(col) {
+            if (expenseSortCol === col) {
+                expenseSortAsc = !expenseSortAsc;
+            } else {
+                expenseSortCol = col;
+                expenseSortAsc = true;
+            }
+            // Update header classes
+            document.querySelectorAll('#expenses-table thead th.sortable').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (th.dataset.col === col) {
+                    th.classList.add(expenseSortAsc ? 'sort-asc' : 'sort-desc');
+                }
+            });
+            applyExpenseColumnFilters();
+        }
+
+        function applyExpenseColumnFilters() {
+            const filters = {};
+            document.querySelectorAll('#expenses-table .col-filter').forEach(input => {
+                const val = input.value.trim().toLowerCase();
+                if (val) filters[input.dataset.col] = val;
+            });
+
+            let filtered = allExpenses.filter(e => {
+                for (const [col, term] of Object.entries(filters)) {
+                    const cellVal = String(e[col] ?? '').toLowerCase();
+                    if (!cellVal.includes(term)) return false;
+                }
+                return true;
+            });
+
+            // Sort
+            filtered.sort((a, b) => {
+                let va = a[expenseSortCol];
+                let vb = b[expenseSortCol];
+                // Numeric columns
+                if (['amount', 'martin_hours', 'colette_hours', 'miles'].includes(expenseSortCol)) {
+                    va = parseFloat(va) || 0;
+                    vb = parseFloat(vb) || 0;
+                } else {
+                    va = String(va ?? '').toLowerCase();
+                    vb = String(vb ?? '').toLowerCase();
+                }
+                if (va < vb) return expenseSortAsc ? -1 : 1;
+                if (va > vb) return expenseSortAsc ? 1 : -1;
+                return 0;
+            });
+
+            renderExpenses(filtered);
+        }
+
         // Drag and drop setup (called after DOM loads)
         function initDragDrop() {
             const dropArea = document.getElementById('receipt-drop-area');
@@ -2754,7 +2882,7 @@
                 if (error) throw error;
 
                 allExpenses = expenses || [];
-                renderExpenses(allExpenses);
+                applyExpenseColumnFilters();
             } catch (error) {
                 console.error('Error loading expenses:', error);
                 document.getElementById('expenses-tbody').innerHTML = 
