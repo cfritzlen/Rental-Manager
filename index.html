@@ -4205,6 +4205,36 @@ If you cannot read something clearly, use null.`
             .bk-preview-img { flex:none; width:100%; height:160px; }
             .bk-fields { grid-template-columns:1fr; }
         }
+
+        /* Full-size lightbox */
+        .bk-lightbox {
+            display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+            background:rgba(0,0,0,0.9); z-index:20000; justify-content:center; align-items:center;
+            flex-direction:column; cursor:pointer;
+        }
+        .bk-lightbox.active { display:flex; }
+        .bk-lightbox canvas {
+            max-width:92vw; max-height:85vh; border-radius:8px; background:#fff;
+            box-shadow:0 4px 40px rgba(0,0,0,0.5);
+        }
+        .bk-lightbox .lb-hint {
+            color:rgba(255,255,255,0.7); font-size:13px; margin-top:12px;
+        }
+        .bk-lightbox .lb-close-btn {
+            position:absolute; top:16px; right:20px; background:rgba(255,255,255,0.15);
+            border:none; color:#fff; font-size:28px; width:44px; height:44px; border-radius:50%;
+            cursor:pointer; display:flex; align-items:center; justify-content:center;
+        }
+        .bk-lightbox .lb-close-btn:hover { background:rgba(255,255,255,0.3); }
+
+        /* Scan button in review */
+        .bk-scan-btn {
+            padding:8px 16px; background:#6b5b95; color:#fff; border:none; border-radius:8px;
+            font-weight:600; font-size:13px; cursor:pointer; transition:all 0.15s;
+        }
+        .bk-scan-btn:hover { background:#5a4a84; }
+        .bk-scan-btn:disabled { opacity:0.5; cursor:not-allowed; }
+        .bk-scan-status { font-size:12px; color:#6b5b95; font-style:italic; margin-left:8px; }
     </style>
 
     <div class="bk-overlay" id="bk-overlay">
@@ -4241,6 +4271,13 @@ If you cannot read something clearly, use null.`
         </div>
     </div>
 
+    <!-- Full-size page lightbox -->
+    <div class="bk-lightbox" id="bk-lightbox" onclick="closeBkLightbox()">
+        <button class="lb-close-btn" onclick="closeBkLightbox()">✕</button>
+        <div id="bk-lightbox-content"></div>
+        <div class="lb-hint">Click anywhere to close</div>
+    </div>
+
     <script>
     // ===================== BULK PDF IMPORT =====================
     let bkPages = []; // [{pdfBytes, pageNum, scanned, status:'pending'|'saved'|'skipped', thumbCanvas}]
@@ -4248,6 +4285,72 @@ If you cannot read something clearly, use null.`
 
     // Set pdf.js worker
     if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    // Safe base64 encoding for large byte arrays
+    function bytesToBase64(bytes) {
+        const uint8 = new Uint8Array(bytes);
+        let binary = '';
+        const chunkSize = 8192;
+        for (let i = 0; i < uint8.length; i += chunkSize) {
+            binary += String.fromCharCode.apply(null, uint8.subarray(i, Math.min(i + chunkSize, uint8.length)));
+        }
+        return btoa(binary);
+    }
+
+    // Lightbox for full-size page viewing
+    async function openBkLightbox(pageIdx) {
+        const pg = bkPages[pageIdx];
+        if (!pg) return;
+        const lb = document.getElementById('bk-lightbox');
+        const content = document.getElementById('bk-lightbox-content');
+        content.innerHTML = '<div style="color:#fff;font-size:14px;">Loading full-size preview...</div>';
+        lb.classList.add('active');
+        try {
+            const canvas = await renderPageThumb(pg.pdfBytes, 900);
+            content.innerHTML = '';
+            content.appendChild(canvas);
+        } catch(e) {
+            content.innerHTML = '<div style="color:#fff;">Could not render preview</div>';
+        }
+    }
+
+    function closeBkLightbox() {
+        document.getElementById('bk-lightbox').classList.remove('active');
+    }
+
+    // Per-page AI scan button
+    async function bkScanCurrentPage(idx) {
+        const btn = document.getElementById('bk-scan-btn');
+        const status = document.getElementById('bk-scan-status');
+        btn.disabled = true;
+        btn.textContent = '⏳ Scanning...';
+        status.textContent = 'Reading receipt...';
+
+        try {
+            const pg = bkPages[idx];
+            const scanned = await bkScanPage(pg.pdfBytes);
+            pg.scanned = scanned;
+
+            // Fill in form fields
+            if (scanned.date) document.getElementById('bk-date').value = scanned.date;
+            if (scanned.amount) document.getElementById('bk-amount').value = scanned.amount;
+            if (scanned.vendor) document.getElementById('bk-vendor').value = scanned.vendor;
+            if (scanned.notes) document.getElementById('bk-notes').value = scanned.notes;
+            if (scanned.category) {
+                const catSel = document.getElementById('bk-cat');
+                for (let i = 0; i < catSel.options.length; i++) {
+                    if (catSel.options[i].value === scanned.category) { catSel.selectedIndex = i; break; }
+                }
+            }
+            status.textContent = '✅ Fields filled — review and save!';
+        } catch (err) {
+            console.error('Scan error:', err);
+            status.textContent = '❌ Scan failed: ' + err.message;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '🤖 Scan Receipt';
+        }
+    }
 
     function openBulkPdfImport() {
         const apiKey = getApiKey();
@@ -4352,7 +4455,7 @@ If you cannot read something clearly, use null.`
 
     async function bkScanPage(pdfBytes) {
         const apiKey = getApiKey();
-        const base64 = btoa(String.fromCharCode.apply(null, new Uint8Array(pdfBytes)));
+        const base64 = bytesToBase64(pdfBytes);
         const categories = ['Repairs','Maintenance','Water/Sewer','Trash','Snow & Landscaping','Taxes','Insurance','Utilities','Post Rental','Upgrades','Mortgage Payment','Other'];
 
         const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -4421,8 +4524,12 @@ If you cannot read something clearly, use null.`
                 </div>
                 <div class="bk-review-body">
                     <div class="bk-preview-row">
-                        <div class="bk-preview-img" id="bk-preview-img"></div>
+                        <div class="bk-preview-img" id="bk-preview-img" onclick="openBkLightbox(${idx})" style="cursor:zoom-in;" title="Click to view full size"></div>
                         <div class="bk-fields-col">
+                            <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                <button class="bk-scan-btn" id="bk-scan-btn" onclick="bkScanCurrentPage(${idx})">🤖 Scan Receipt</button>
+                                <span class="bk-scan-status" id="bk-scan-status">${(s.date || s.amount || s.vendor) ? '✅ Auto-scanned' : 'Click to scan with AI'}</span>
+                            </div>
                             <div class="bk-fields">
                                 <div class="form-group">
                                     <label>Date *</label>
@@ -4514,6 +4621,10 @@ If you cannot read something clearly, use null.`
             big.height = pg.thumbCanvas.height;
             big.getContext('2d').drawImage(pg.thumbCanvas, 0, 0);
             previewEl.appendChild(big);
+            const zoom = document.createElement('div');
+            zoom.style.cssText = 'font-size:11px;color:#6b5b95;text-align:center;margin-top:4px;font-weight:600;';
+            zoom.textContent = '🔍 Click to zoom';
+            previewEl.appendChild(zoom);
         } else {
             previewEl.innerHTML = '<div style="color:#94a3b8;font-size:13px;">Preview unavailable</div>';
         }
